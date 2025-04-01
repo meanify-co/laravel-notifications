@@ -10,10 +10,22 @@ use Meanify\LaravelNotifications\Jobs\DispatchNotificationJob;
 
 class NotificationDispatcher
 {
+    /**
+     * @param string $locale
+     * @param object $user
+     * @param string|null $templateKey
+     * @param array $replacements
+     * @param int|null $accountId
+     * @param int|null $applicationId
+     * @param int|null $sessionId
+     * @param array $overrideEmails
+     * @param array $smtpConfigs
+     * @return void
+     */
     public function dispatch(
-        string $templateKey,
         string $locale,
         object $user,
+        ?string $templateKey = null,
         array $replacements = [],
         ?int $accountId = null,
         ?int $applicationId = null,

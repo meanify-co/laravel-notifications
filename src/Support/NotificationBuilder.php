@@ -6,9 +6,10 @@ use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 
 class NotificationBuilder
 {
-    protected string $templateKey;
     protected string $locale;
+
     protected object $to;
+    protected ?string $templateKey = null;
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
@@ -16,26 +17,27 @@ class NotificationBuilder
     protected array $overrideEmails = [];
     protected array $smtpConfigs = [];
 
-    public static function make(): static
+    public static function make(object $to_user, ?string $locale): static
     {
-        return new static();
+        return new static($to_user, $locale);
     }
 
-    public function __construct()
+    public function __construct(object $to, ?string $locale = null)
     {
-        //
-    }
+        $this->setTo($to);
+        $this->setLocale($locale ?? config('app.locale'));
 
-    public function locale(string $locale): static
-    {
-        $this->locale = $locale;
         return $this;
     }
 
-    public function to(object $to): static
+    protected function setLocale(string $locale)
+    {
+        $this->locale = str_replace('-','_',$locale);
+    }
+
+    protected function setTo(object $to)
     {
         $this->to = $to;
-        return $this;
     }
 
     public function onAccount(?int $accountId): static
@@ -88,9 +90,9 @@ class NotificationBuilder
     public function send(): void
     {
         app(NotificationDispatcher::class)->dispatch(
-            $this->templateKey,
             $this->locale,
             $this->to,
+            $this->templateKey,
             $this->replacements,
             $this->accountId,
             $this->applicationId,
