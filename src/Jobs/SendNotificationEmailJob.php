@@ -69,7 +69,7 @@ class SendNotificationEmailJob implements ShouldQueue
         if (empty($emails) && $this->notification->user) {
             $emails = [$this->notification->user->email];
         }
-        
+
         foreach ($emails as $email) {
             Mail::html($html, function ($message) use ($email, $subject) {
                 $message->to($email);
