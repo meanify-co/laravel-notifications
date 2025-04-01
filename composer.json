@@ -1,0 +1,46 @@
+{
+    "name": "meanify-co/laravel-notifications",
+    "description": "A PHP library to handle multichannel notifications in Laravel",
+    "authors": [
+        {
+            "name": "Daniel Barcelos",
+            "email": "daniel@meanify.co"
+        }
+    ],
+    "keywords": [
+        "utils",
+        "helpers",
+        "notifications",
+        "channel",
+        "email",
+        "php",
+        "laravel"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.0",
+        "meanify-co/laravel-obfuscator": "dev-master"
+    },
+    "require-dev": {
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "orchestra/testbench": "^8.0 || ^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Meanify\\LaravelNotifications\\": "src/"
+        },
+        "files": [
+            "src/Helpers/boot.php"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Meanify\\LaravelNotifications\\Providers\\MeanifyLaravelNotificationServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
