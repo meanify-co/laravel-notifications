@@ -3,8 +3,8 @@
 use Meanify\LaravelNotifications\Support\NotificationBuilder;
 
 if (! function_exists('meanify_notifications')) {
-    function meanify_notifications(string $templateKey): NotificationBuilder
+    function meanify_notifications(): NotificationBuilder
     {
-        return NotificationBuilder::make($templateKey);
+        return NotificationBuilder::make();
     }
 }
