@@ -8,7 +8,7 @@ class NotificationBuilder
 {
     protected string $templateKey;
     protected string $locale;
-    protected mixed $to;
+    protected object $to;
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
@@ -16,14 +16,14 @@ class NotificationBuilder
     protected array $overrideEmails = [];
     protected array $smtpConfigs = [];
 
-    public static function make(string $templateKey): static
+    public static function make(): static
     {
-        return new static($templateKey);
+        return new static();
     }
 
-    public function __construct(string $templateKey)
+    public function __construct()
     {
-        $this->templateKey = $templateKey;
+        //
     }
 
     public function locale(string $locale): static
@@ -32,15 +32,9 @@ class NotificationBuilder
         return $this;
     }
 
-    public function to(mixed $to): static
+    public function to(object $to): static
     {
         $this->to = $to;
-        return $this;
-    }
-
-    public function emails(array $emails): self
-    {
-        $this->overrideEmails = $emails;
         return $this;
     }
 
@@ -62,10 +56,27 @@ class NotificationBuilder
         return $this;
     }
 
-    public function smtpConfigs(array $configs): self
+    public function email(array $smtpConfigs, array $recipients, ?string $emailTemplateKey): static
+    {
+        $this->setSmtpConfigs($smtpConfigs);
+        $this->setEmails($recipients);
+        $this->setEmailTemplateKey($emailTemplateKey);
+        return $this;
+    }
+
+    protected function setSmtpConfigs(array $configs)
     {
         $this->smtpConfigs = $configs;
-        return $this;
+    }
+
+    protected function setEmailTemplateKey(?string $templateKey)
+    {
+        $this->templateKey = $templateKey;
+    }
+
+    protected function setEmails(array $emails)
+    {
+        $this->overrideEmails = $emails;
     }
 
     public function with(array $replacements): static
