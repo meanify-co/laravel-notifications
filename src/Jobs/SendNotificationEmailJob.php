@@ -19,19 +19,25 @@ class SendNotificationEmailJob implements ShouldQueue
 
     public Notification $notification;
 
+    /**
+     * @param Notification $notification
+     */
     public function __construct(Notification $notification)
     {
         $this->notification = $notification;
 
-        $this->tries = config('meanify-laravel-notifications.email.tries', 3);
+        $this->tries   = config('meanify-laravel-notifications.email.tries', 3);
         $this->backoff = config('meanify-laravel-notifications.email.backoff', 30);
 
         $this->onQueue(config('meanify-laravel-notifications.email.queue', 'meanify_queue_notification_emails'));
     }
 
+    /**
+     * @return void
+     */
     public function handle(): void
     {
-        if (! config('meanify-laravel-notifications.email.enabled', true)) {
+        if (!config('meanify-laravel-notifications.email.enabled', true)) {
             return;
         }
 
@@ -60,17 +66,16 @@ class SendNotificationEmailJob implements ShouldQueue
             ]);
         }
 
+        $emails  = $this->notification->payload['__recipients'] ?? [];
 
-        $emails = $this->notification->payload['__override_emails'] ?? [];
+        $html    = app(NotificationRenderer::class)->renderEmail($this->notification);
 
-        $html = app(NotificationRenderer::class)->renderEmail($this->notification);
         $subject = trim(($smtp['subject_prefix'] ?? '') .' '.$this->notification->payload['subject'] ?? 'App notification');
 
-        if (empty($emails) && $this->notification->user) {
-            $emails = [$this->notification->user->email];
-        }
-
-        foreach ($emails as $email) {
+        foreach ($emails as $email)
+        {
+            $html = str_replace('{{recipient}}', Crypt::encrypt($email), $html);
+            
             Mail::html($html, function ($message) use ($email, $subject) {
                 $message->to($email);
                 $message->subject($subject);
@@ -87,6 +92,7 @@ class SendNotificationEmailJob implements ShouldQueue
     public function failed(\Throwable $e): void
     {
         $this->notification->update(['status' => 'failed']);
+
         Log::emergency('Email notification failed', [
             'notification_id' => $this->notification->id,
             'exception' => [

@@ -35,7 +35,7 @@ return [
     |
     */
 
-    'default_email_layout' => 'default_dark',
+    'default_email_layout' => 'default',
 
     /*
     |--------------------------------------------------------------------------

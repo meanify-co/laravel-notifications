@@ -1,6 +1,6 @@
 <?php
 
-namespace Meanify\LaravelNotifications\Database\Seeders;
+namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -12,60 +12,28 @@ class EmailLayoutSeeder extends Seeder
         DB::table('emails_layouts')->updateOrInsert(
             ['key' => 'default'],
             [
-                'name' => 'Default layout',
+                'name' => 'Main dynamic layout for emails',
                 'metadata' => json_encode([
-                    'primary_color' => '#0047ab',
-                    'font_family' => 'Arial, sans-serif',
-                    'header_title' => 'App Notification',
-                    'footer_text' => '© 2025 Meanify. All rights reserved.'
+                    'logo_url' => null,
+                    'logo_width' => null,
+                    'logo_height' => null,
+                    'short_cta' => 'Click here',
+                    'cta_help' => 'to be redirected if the button has not appeared.',
+                    'help_text' => 'This is an automatic email. Please do not reply to this message.',
+                    'social_links' => [
+                        'facebook' => 'https://facebook.com/meanify.tech',
+                        'linkedin' => 'https://linkedin.com/company/meanify-tech',
+                        'instagram' => 'https://instagram.com/meanify.tech',
+                        'youtube' => 'https://youtube.com/@Meanify-tech',
+                    ],
+                    'privacy_url'  => 'https://meanify.co/terms/privacy',
+                    'privacy_text' => 'Privacy Policy',
+                    'unsubscribe_url' => 'https://meanify.co/email/unsubscribe?origin={{recipient}}',
+                    'unsubscribe_text' => 'Unsubscribe',
                 ]),
-                'blade_template' => <<<HTML
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>{{ \$subject ?? 'Email' }}</title>
-    <style>
-        body {
-            font-family: {{ \$font_family ?? 'sans-serif' }};
-            background-color: #f4f4f4;
-            padding: 32px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: #fff;
-            padding: 24px;
-            border-radius: 8px;
-        }
-        .header h1 {
-            margin: 0 0 16px;
-            color: {{ \$primary_color ?? '#333' }};
-        }
-        .footer {
-            margin-top: 32px;
-            font-size: 12px;
-            color: #777;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>{{ \$header_title ?? 'Notificação' }}</h1>
-        </div>
-
-        <div class="content">
-            {!! \$content !!}
-        </div>
-
-        <div class="footer">
-            <p>{{ \$footer_text ?? 'Este é um e-mail automático. Não responda.' }}</p>
-        </div>
-    </div>
-</body>
-</html>
-HTML
+                'blade_template' => file_get_contents(base_path('vendor/meanify-co/laravel-notifications/src/Resources/views/emails-layouts/default.blade.php')),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]
         );
     }

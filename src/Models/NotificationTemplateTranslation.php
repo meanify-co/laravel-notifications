@@ -30,6 +30,6 @@ class NotificationTemplateTranslation extends \Illuminate\Database\Eloquent\Mode
      */
     public function template()
     {
-        return $this->belongsTo(NotificationTemplate::class);
+        return $this->belongsTo(NotificationTemplate::class, 'notification_template_id');
     }
 }

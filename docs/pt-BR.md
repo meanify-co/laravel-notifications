@@ -7,10 +7,9 @@
 
 # Laravel Notifications
 
+Um sistema robusto e extensível de notificações para Laravel que unifica **e-mail**, **in-app** e **notificações em tempo real**.
 
-Um sistema de notificações poderoso e extensível para Laravel que unifica **e-mail**, **in-app** e **notificações em tempo real** (broadcast).
-
-> ✅ Suporte completo a templates dinâmicos, layouts personalizados, traduções, SMTP dinâmico e canais seguros com IDs mascarados.
+> ✅ Suporte completo a templates dinâmicos, layouts HTML, traduções, substituição de SMTP, canais seguros e muito mais.
 
 ---
 
@@ -22,7 +21,7 @@ composer require meanify-co/laravel-notifications
 
 ---
 
-## 🚀 Publicação dos Recursos
+## 🚀 Publicação dos recursos
 
 ```bash
 php artisan vendor:publish --provider="Meanify\LaravelNotifications\Providers\MeanifyLaravelNotificationServiceProvider"
@@ -33,7 +32,7 @@ Isso irá publicar:
 - `config/meanify-laravel-notifications.php`
 - Migrations
 - Seeders (opcional)
-- Views (layouts Blade para e-mail)
+- Views (layouts Blade)
 
 ---
 
@@ -41,16 +40,16 @@ Isso irá publicar:
 
 Edite `config/meanify-laravel-notifications.php` para personalizar:
 
-- Nomes das filas
-- Layout padrão para e-mail
-- Tentativas e delay de e-mail
+- Nomes de filas
+- Layout padrão
+- Retries e backoff para e-mail
 - Prefixo dos canais de broadcast
 
 ---
 
-## 🧱 Estrutura do Banco de Dados
+## 🧱 Estrutura do banco
 
-Este pacote usa as seguintes tabelas:
+Este pacote utiliza as seguintes tabelas:
 
 - `emails_layouts`
 - `notifications_templates`
@@ -68,21 +67,33 @@ php artisan migrate
 
 ## 🌱 Seeders
 
-Opcionalmente, popule o banco com templates e layouts padrão:
+Opcionalmente, rode os seeders:
 
 ```bash
-php artisan db:seed --class="\Meanify\LaravelNotifications\Database\Seeders\EmailLayoutSeeder"
-php artisan db:seed --class="\Meanify\LaravelNotifications\Database\Seeders\NotificationTemplateSeeder"
+php artisan db:seed --class="\\Meanify\\LaravelNotifications\\Database\\Seeders\\EmailLayoutSeeder"
+php artisan db:seed --class="\\Meanify\\LaravelNotifications\\Database\\Seeders\\NotificationTemplateSeeder"
 ```
 
 ---
 
-## 💡 Uso com Helper
+## 💡 Exemplo com Helper
 
 ```php
 meanify_notifications()
     ->to($user)
     ->locale('pt_BR')
+    ->onAccount($accountId)
+    ->onApplication($appId)
+    ->onSession($sessionId)
+    ->email($smtpConfigs, $recipients, 'sign_in_code')
+    ->with(['code' => '123456'])
+    ->send();
+```
+
+Ou utilizando diretamente:
+
+```php
+NotificationBuilder::make($user, 'pt_BR')
     ->onAccount($accountId)
     ->onApplication($appId)
     ->onSession($sessionId)
@@ -99,75 +110,62 @@ meanify_notifications()
 php artisan meanify:notifications:test \
     --template=sign_in_code \
     --user=1 \
-    --emails=usuario@email.com \
+    --emails=usuario@exemplo.com \
     --vars='{"code": "123456"}'
 ```
 
-Opções:
+Parâmetros opcionais:
 
-- `--template=` Chave do template
+- `--template=` Chave do template de notificação
 - `--locale=` Idioma (pt-BR ou en-US)
 - `--user=` ID do usuário
 - `--emails=` Lista de e-mails separados por vírgula
-- `--smtp=` ID das configurações SMTP (do seu banco)
+- `--smtp=` ID da configuração de e-mail (tabela `emails_settings`)
 - `--account=`, `--application=`, `--session=` Contexto opcional
-- `--vars=` JSON com variáveis dinâmicas
+- `--vars=` JSON com variáveis de substituição
 
 ---
 
 ## ✨ Templates Dinâmicos
 
-- Templates salvos no banco de dados com traduções por idioma.
-- Use `{{ nome_variavel }}` no assunto, corpo ou mensagem curta.
-- In-app é usado para mensagens breves (ex: toast ou dropdown).
+- Armazenados no banco com traduções por idioma
+- Suporte a `{{ variable }}` no assunto, corpo e mensagens in-app
 
 ---
 
-## 🎨 Layouts
+## 🎨 Layout HTML com Blade
 
-Cada template pode usar um layout HTML salvo no banco com o marcador `{{ $content }}`.
+Todos os e-mails usam um layout Blade salvo no banco, com suporte às variáveis:
 
-Se não houver, o fallback será:
-
-```html
-<html>
-  <body>
-    {{ $content }}
-  </body>
-</html>
+```blade
+{{ \$logo_url }}, {{ \$title }}, {{ \$text }}, {{ \$otp }}, {{ \$cta_link }}, {{ \$cta_button }}, {{ \$short_cta }}, {{ \$cta_help }}, {{ \$help_text }}, {{ \$social_links }}, {{ \$privacy_url }}, {{ \$unsubscribe_url }}
 ```
+
+> O layout será renderizado usando `Blade::render()` via `NotificationRenderer`.
 
 ---
 
-## 📡 Notificações em Tempo Real
+## 📡 Notificações em Tempo Real (Laravel Reverb)
 
-Habilite o Laravel Reverb e use:
-
-```php
-broadcast(new InAppNotificationCreated($notification))
-```
-
-Cada canal tem o formato:
-
-```
-mfy_channel_{base64(ModelClass::obfuscated_id)}
-```
-
-Use o helper:
+Utiliza canais com prefixo `mfy_channel_` e ID ofuscado + base64:
 
 ```php
-ChannelBuilder::makeChannel(User::class, $user)
+ChannelBuilder::makeChannel(User::class, $user);
 ```
 
-> Usa `meanify/laravel-obfuscator` para mascaramento seguro.
+Exemplo de evento emitido:
+
+```php
+broadcast(new InAppNotificationCreated($notification));
+```
+
+> Usa `meanify-co/laravel-obfuscator` para mascarar IDs.
 
 ---
 
 ## 🛠️ Configuração do Supervisor
 
-Crie um worker para cada fila:
-
-### notifications.conf
+### Exemplo: notifications.conf
 
 ```ini
 [program:meanify-notifications-worker]
@@ -182,7 +180,7 @@ stdout_logfile=/var/www/html/storage/logs/supervisor-notifications.log
 stopwaitsecs=3600
 ```
 
-Repita para:
+Crie também workers para:
 
 - `meanify_queue_notification_emails`
 - `meanify_queue_notification_in_app`
@@ -191,17 +189,18 @@ Repita para:
 
 ## ✅ Canais Suportados
 
-- [x] E-mail
+- [x] E-mail (SMTP customizável)
 - [x] In-App
 - [x] Laravel Reverb (Broadcast)
 
 ---
 
-## 🧰 Customização
+## 🧰 Personalização
 
-- SMTP dinâmico por notificação (criptografado)
-- Broadcast seguro com Obfuscator + base64
-- Crie novos templates via painel ou seeders
+- SMTP dinâmico por envio (criptografado)
+- Variáveis e layouts HTML por template
+- Builder fluente com contexto completo
+- Integração com sistemas multi-conta, multi-app, multi-sessão
 
 ---
 

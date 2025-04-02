@@ -8,25 +8,36 @@ use App\Models\EmailLayout;
 
 class NotificationRenderer
 {
+    /**
+     * @param Notification $notification
+     * @return string
+     */
     public function renderEmail(Notification $notification): string
     {
-        $payload = $notification->payload ?? [];
+        $payload  = $notification->payload ?? [];
+
         $template = $notification->template;
 
         $layout = $template?->layout
-            ?? EmailLayout::where('key', config('meanify-laravel-notifications.default_email_layout', 'default_dark'))->first();
+            ?? EmailLayout::where('key', config('meanify-laravel-notifications.default_email_layout', 'default'))->first();
 
         $htmlLayout = $layout?->blade_template ?? '{{ $content }}';
 
 
-        $body = $payload['body'] ?? '';
-        $replacements = $payload['replacements'] ?? [];
+        $body        = $payload['body'] ?? '';
+        $dynamicData = $payload['dynamic_data'] ?? [];
+        unset($dynamicData['dynamic_data']);
 
-        $renderedBody = Blade::render($body, $replacements);
+        if($layout)
+        {
+            $dynamicData = array_merge($dynamicData, $layout->metadata);
+        }
+
+        $renderedBody = Blade::render($body, $dynamicData);
 
         return Blade::render($htmlLayout, [
                 'content' => $renderedBody,
                 'subject' => $payload['subject'] ?? null,
-            ] + $replacements);
+            ] + $dynamicData + $payload);
     }
 }

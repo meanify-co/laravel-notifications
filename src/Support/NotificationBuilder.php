@@ -6,99 +6,152 @@ use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 
 class NotificationBuilder
 {
+    protected string $notificationTemplateKey;
+    protected object $user;
     protected string $locale;
-
-    protected object $to;
-    protected ?string $templateKey = null;
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
-    protected array $replacements = [];
-    protected array $overrideEmails = [];
     protected array $smtpConfigs = [];
+    protected array $recipients = [];
+    protected array $dynamicData = [];
 
-    public static function make(object $to_user, ?string $locale): static
+    /**
+     * @param string $notificationTemplateKey
+     * @param object $user
+     * @param string|null $locale
+     * @return static
+     */
+    public static function make(string $notificationTemplateKey, object $user, ?string $locale): static
     {
-        return new static($to_user, $locale);
+        return new static($notificationTemplateKey, $user, $locale);
     }
 
-    public function __construct(object $to, ?string $locale = null)
+    /**
+     * @param object $user
+     * @param string|null $locale
+     */
+    public function __construct(string $notificationTemplateKey, object $user, ?string $locale = null)
     {
-        $this->setTo($to);
+        $this->setNotificationTemplateKey($notificationTemplateKey);
+        $this->setUser($user);
         $this->setLocale($locale ?? config('app.locale'));
 
         return $this;
     }
 
+    /**
+     * @param string $notificationTemplateKey
+     * @return void
+     */
+    protected function setNotificationTemplateKey(string $notificationTemplateKey)
+    {
+        $this->notificationTemplateKey = $notificationTemplateKey;
+    }
+
+    /**
+     * @param object $user
+     * @return void
+     */
+    protected function setUser(object $user)
+    {
+        $this->user = $user;
+    }
+
+    /**
+     * @param string $locale
+     * @return void
+     */
     protected function setLocale(string $locale)
     {
         $this->locale = str_replace('-','_',$locale);
     }
 
-    protected function setTo(object $to)
-    {
-        $this->to = $to;
-    }
-
+    /**
+     * @param int|null $accountId
+     * @return $this
+     */
     public function onAccount(?int $accountId): static
     {
         $this->accountId = $accountId;
         return $this;
     }
 
+    /**
+     * @param int|null $applicationId
+     * @return $this
+     */
     public function onApplication(?int $applicationId): static
     {
         $this->applicationId = $applicationId;
         return $this;
     }
 
+    /**
+     * @param int|null $sessionId
+     * @return $this
+     */
     public function onSession(?int $sessionId): static
     {
         $this->sessionId = $sessionId;
         return $this;
     }
 
-    public function email(array $smtpConfigs, array $recipients, ?string $emailTemplateKey): static
+    /**
+     * @param array $smtpConfigs
+     * @param array $recipients
+     * @return $this
+     */
+    public function forEmail(array $smtpConfigs, array $recipients): static
     {
         $this->setSmtpConfigs($smtpConfigs);
-        $this->setEmails($recipients);
-        $this->setEmailTemplateKey($emailTemplateKey);
+        $this->setRecipients($recipients);
         return $this;
     }
 
+    /**
+     * @param array $configs
+     * @return void
+     */
     protected function setSmtpConfigs(array $configs)
     {
         $this->smtpConfigs = $configs;
     }
 
-    protected function setEmailTemplateKey(?string $templateKey)
+    /**
+     * @param array $recipients
+     * @return void
+     */
+    protected function setRecipients(array $recipients)
     {
-        $this->templateKey = $templateKey;
+        $this->recipients = $recipients;
     }
 
-    protected function setEmails(array $emails)
+    /**
+     * @param array $dynamicData
+     * @return $this
+     */
+    public function with(array $dynamicData): static
     {
-        $this->overrideEmails = $emails;
-    }
-
-    public function with(array $replacements): static
-    {
-        $this->replacements = $replacements;
+        $this->dynamicData = $dynamicData;
         return $this;
     }
 
-    public function send(): void
+    /**
+     * @return bool
+     */
+    public function send(): bool
     {
-        app(NotificationDispatcher::class)->dispatch(
+        return app(NotificationDispatcher::class)->dispatch(
+            $this->notificationTemplateKey,
+            $this->user,
             $this->locale,
-            $this->to,
-            $this->templateKey,
-            $this->replacements,
             $this->accountId,
             $this->applicationId,
             $this->sessionId,
-            $this->overrideEmails,
-            $this->smtpConfigs
+            $this->smtpConfigs,
+            $this->recipients,
+            $this->dynamicData,
         );
     }
 }

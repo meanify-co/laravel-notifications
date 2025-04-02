@@ -17,22 +17,35 @@ class DispatchNotificationJob implements ShouldQueue
 
     public Notification $notification;
 
+    /**
+     * @param Notification $notification
+     */
     public function __construct(Notification $notification)
     {
         $this->notification = $notification;
         $this->onQueue(config('meanify-laravel-notifications.default.queue', 'meanify_queue_notification'));
     }
 
+    /**
+     * @return void
+     */
     public function handle(): void
     {
-        try {
-            match ($this->notification->channel) {
-                'email' => SendNotificationEmailJob::dispatch($this->notification),
+        try
+        {
+            match ($this->notification->channel)
+            {
+                'email'  => SendNotificationEmailJob::dispatch($this->notification),
+
                 'in_app' => BroadcastInAppNotificationJob::dispatch($this->notification),
-                default => Log::warning("Unknown notification channel: {$this->notification->channel}")
+
+                default  => Log::warning("Unknown notification channel: {$this->notification->channel}")
             };
-        } catch (\Throwable $e) {
+        }
+        catch (\Throwable $e)
+        {
             $this->notification->update(['status' => 'failed']);
+
             Log::error('DispatchNotificationJob failed', [
                 'notification_id' => $this->notification->id,
                 'error' => $e->getMessage(),

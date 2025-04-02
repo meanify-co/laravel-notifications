@@ -11,88 +11,118 @@ use Meanify\LaravelNotifications\Jobs\DispatchNotificationJob;
 class NotificationDispatcher
 {
     /**
-     * @param string $locale
+     * @param string $notificationTemplateKey
      * @param object $user
-     * @param string|null $templateKey
-     * @param array $replacements
+     * @param string $locale
      * @param int|null $accountId
      * @param int|null $applicationId
      * @param int|null $sessionId
-     * @param array $overrideEmails
      * @param array $smtpConfigs
+     * @param array $recipients
+     * @param array $dynamicData
      * @return void
      */
     public function dispatch(
-        string $locale,
+        string $notificationTemplateKey,
         object $user,
-        ?string $templateKey = null,
-        array $replacements = [],
+        string $locale,
         ?int $accountId = null,
         ?int $applicationId = null,
         ?int $sessionId = null,
-        array $overrideEmails = [],
-        array $smtpConfigs = []
-    ): void {
-        $template = NotificationTemplate::where('key', $templateKey)
-            ->where('active', true)
-            ->with('translations', 'variables', 'layout')
-            ->firstOrFail();
+        array $smtpConfigs = [],
+        array $recipients = [],
+        array $dynamicData = [],
+    ): bool {
 
-        foreach ($template->available_channels as $channel) {
-            DB::beginTransaction();
+        $dispatched = true;
 
-            try {
-                $translation = $template->translations
-                    ->where('locale', $locale)
-                    ->first();
+        try
+        {
+            $template = NotificationTemplate::where('key', $notificationTemplateKey)
+                ->where('active', true)
+                ->with('translations', 'variables', 'layout')
+                ->firstOrFail();
 
-                $payload = [
-                    'subject' => $this->interpolate($translation->subject ?? '', $replacements),
-                    'body' => $this->interpolate($translation->body ?? '', $replacements),
-                    'short_message' => $this->interpolate($translation->short_message ?? '', $replacements),
-                    'replacements' => $replacements,
-                ];
+            foreach ($template->available_channels as $channel)
+            {
+                DB::beginTransaction();
 
-                if (!empty($overrideEmails)) {
-                    $payload['__override_emails'] = $overrideEmails;
+                try
+                {
+                    $translation = $template->translations->where('locale', $locale)->first();
+
+                    $payload = [
+                        'subject'       => $this->interpolate($translation->subject ?? '', $dynamicData),
+                        'title'         => $this->interpolate($translation->title ?? '', $dynamicData),
+                        'body'          => $this->interpolate($translation->body ?? '', $dynamicData),
+                        'short_message' => $this->interpolate($translation->short_message ?? '', $dynamicData),
+                        'dynamic_data'  => $dynamicData,
+                    ];
+
+                    if (!empty($recipients))
+                    {
+                        $payload['__recipients'] = $recipients;
+                    }
+
+                    if (!empty($smtpConfigs))
+                    {
+                        $payload['__smtp'] = $smtpConfigs;
+                    }
+
+                    $notification = Notification::create([
+                        'notification_template_id' => $template->id,
+                        'user_id'                  => $user->id ?? null,
+                        'application_id'           => $applicationId,
+                        'session_id'               => $sessionId,
+                        'account_id'               => $accountId,
+                        'channel'                  => $channel,
+                        'payload'                  => $payload,
+                        'status'                   => 'pending',
+                    ]);
+
+                    DB::commit();
+
+                    DispatchNotificationJob::dispatch($notification)
+                        ->onQueue(config('meanify-laravel-notifications.default_queue_name', 'meanify_queue_notification'))
+                        ->delay(now()->addSeconds(3));
+
                 }
+                catch (\Throwable $e2)
+                {
+                    DB::rollBack();
 
-                if (!empty($smtpConfigs)) {
-                    $payload['__smtp'] = $smtpConfigs;
+                    Log::error('Notification dispatch failed', [
+                        'template' => $notificationTemplateKey,
+                        'user_id' => $user ?? null,
+                        'error' => $e2->getMessage(),
+                    ]);
                 }
-
-
-                $notification = Notification::create([
-                    'notification_template_id' => $template->id,
-                    'user_id' => $user->id ?? null,
-                    'application_id' => $applicationId,
-                    'session_id' => $sessionId,
-                    'account_id' => $accountId,
-                    'channel' => $channel,
-                    'payload' => $payload,
-                    'status' => 'pending',
-                ]);
-
-                DB::commit();
-
-                DispatchNotificationJob::dispatch($notification)
-                    ->onQueue(config('meanify-laravel-notifications.default_queue_name', 'meanify_queue_notification'))
-                    ->delay(now()->addSeconds(1));
-
-            } catch (\Throwable $e) {
-                DB::rollBack();
-                Log::error('Notification dispatch failed', [
-                    'template' => $templateKey,
-                    'user_id' => $user->id ?? null,
-                    'error' => $e->getMessage(),
-                ]);
             }
         }
+        catch(\Exception $e1)
+        {
+            $dispatched = false;
+
+            Log::error('Notification dispatch failed', [
+                'template' => $notificationTemplateKey,
+                'user' => $user ?? null,
+                'error' => $e1->getMessage(),
+            ]);
+        }
+
+        return $dispatched;
     }
 
+    /**
+     * @param string $text
+     * @param array $data
+     * @return string
+     */
     protected function interpolate(string $text, array $data): string
     {
-        foreach ($data as $key => $value) {
+        foreach ($data as $key => $value)
+        {
+            $text = str_replace('{!! '.$key.' !!}', $value, $text);
             $text = str_replace('{{ '.$key.' }}', $value, $text);
         }
 

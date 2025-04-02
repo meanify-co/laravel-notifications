@@ -1,6 +1,6 @@
 <?php
 
-namespace Meanify\LaravelNotifications\Database\Seeders;
+namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -9,43 +9,50 @@ class NotificationTemplateSeeder extends Seeder
 {
     public function run(): void
     {
+        $email_layout = DB::table('emails_layouts')->first();
+        $email_layout_id = isset($email_layout) ? $email_layout->id : null;
+
         $templates = [
             [
-                'key' => 'sign_in_code',
+                'key' => 'sign_in_otp',
                 'channels' => ['email'],
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Código de verificação de acesso',
-                        'body' => 'Seu código de verificação é: <strong>{{ code }}</strong>',
+                        'title' => 'Código de verificação de acesso',
+                        'body' => 'Seu código de verificação é: <br><strong>{{ otp }}</strong>',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'Sign-in verification code',
-                        'body' => 'Your verification code is: <strong>{{ code }}</strong>',
+                        'title' => 'Sign-in verification code',
+                        'body' => 'Your verification code is: <br><strong>{{ otp }}</strong>',
                         'short_message' => null,
                     ],
                 ],
                 'variables' => [
-                    ['key' => 'code', 'description' => 'Código de verificação', 'example' => '123456'],
+                    ['key' => 'otp', 'description' => 'Código de verificação', 'example' => '123456'],
                 ],
             ],
             [
-                'key' => 'forgot_password_code',
+                'key' => 'forgot_password_otp',
                 'channels' => ['email'],
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Código para redefinir sua senha',
-                        'body' => 'Utilize o código <strong>{{ code }}</strong> para redefinir sua senha.',
+                        'title' => 'Código para redefinir sua senha',
+                        'body' => 'Utilize o código <strong>{{ otp }}</strong> para redefinir sua senha.',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'Password reset code',
-                        'body' => 'Use the code <strong>{{ code }}</strong> to reset your password.',
+                        'title' => 'Password reset code',
+                        'body' => 'Use the code <strong>{{ otp }}</strong> to reset your password.',
                         'short_message' => null,
                     ],
                 ],
                 'variables' => [
-                    ['key' => 'code', 'description' => 'Código de redefinição', 'example' => '789123'],
+                    ['key' => 'otp', 'description' => 'Código de redefinição', 'example' => '789123'],
                 ],
             ],
             [
@@ -54,11 +61,13 @@ class NotificationTemplateSeeder extends Seeder
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Novo login detectado',
+                        'title' => 'Novo login detectado',
                         'body' => 'Um novo login foi detectado em sua conta. IP: {{ ip }} - Navegador: {{ browser }}',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'New login detected',
+                        'title' => 'New login detected',
                         'body' => 'A new login was detected on your account. IP: {{ ip }} - Browser: {{ browser }}',
                         'short_message' => null,
                     ],
@@ -74,17 +83,19 @@ class NotificationTemplateSeeder extends Seeder
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Verificação de alteração de e-mail',
-                        'body' => 'Use o código <strong>{{ code }}</strong> para confirmar a alteração do seu e-mail.',
+                        'title' => 'Verificação de alteração de e-mail',
+                        'body' => 'Use o código <strong>{{ otp }}</strong> para confirmar a alteração do seu e-mail.',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'Email change verification',
-                        'body' => 'Use the code <strong>{{ code }}</strong> to confirm your email change.',
+                        'title' => 'Email change verification',
+                        'body' => 'Use the code <strong>{{ otp }}</strong> to confirm your email change.',
                         'short_message' => null,
                     ],
                 ],
                 'variables' => [
-                    ['key' => 'code', 'description' => 'Código de verificação', 'example' => '445566'],
+                    ['key' => 'otp', 'description' => 'Código de verificação', 'example' => '445566'],
                 ],
             ],
             [
@@ -93,11 +104,13 @@ class NotificationTemplateSeeder extends Seeder
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Sua senha foi alterada',
+                        'title' => 'Sua senha foi alterada',
                         'body' => 'Este é um aviso de que sua senha foi alterada com sucesso. Se não foi você, entre em contato conosco imediatamente.',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'Your password has been changed',
+                        'title' => 'Your password has been changed',
                         'body' => 'This is a notice that your password has been successfully changed. If it wasn’t you, contact us immediately.',
                         'short_message' => null,
                     ],
@@ -110,11 +123,13 @@ class NotificationTemplateSeeder extends Seeder
                 'translations' => [
                     'pt_BR' => [
                         'subject' => null,
+                        'title' => null,
                         'body' => null,
                         'short_message' => 'Você recebeu uma nova tarefa!',
                     ],
                     'en_US' => [
                         'subject' => null,
+                        'title' => null,
                         'body' => null,
                         'short_message' => 'You received a new task!',
                     ],
@@ -127,11 +142,13 @@ class NotificationTemplateSeeder extends Seeder
                 'translations' => [
                     'pt_BR' => [
                         'subject' => 'Você foi mencionado em um comentário',
+                        'title' => 'Você foi mencionado em um comentário',
                         'body' => 'Olá {{ user_name }}, você foi mencionado em um comentário no projeto "{{ project }}".',
                         'short_message' => 'Você foi mencionado em um comentário.',
                     ],
                     'en_US' => [
                         'subject' => 'You were mentioned in a comment',
+                        'title' => 'You were mentioned in a comment',
                         'body' => 'Hi {{ user_name }}, you were mentioned in a comment in the project "{{ project }}".',
                         'short_message' => 'You were mentioned in a comment.',
                     ],
@@ -143,36 +160,45 @@ class NotificationTemplateSeeder extends Seeder
             ],
         ];
 
+
         foreach ($templates as $data) {
-            $templateId = DB::table('notifications_templates')->insertGetId([
-                'key' => $data['key'],
-                'available_channels' => json_encode($data['channels']),
-                'active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            $templateId = DB::table('notifications_templates')->insertGetId(
+                [
+                    'key' => $data['key'],
+                    'email_layout_id' => $email_layout_id,
+                    'available_channels' => json_encode($data['channels']),
+                    'active' => true,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
 
             foreach ($data['translations'] as $locale => $content) {
-                DB::table('notifications_templates_translations')->insert([
-                    'notification_template_id' => $templateId,
-                    'locale' => $locale,
-                    'subject' => $content['subject'],
-                    'body' => $content['body'],
-                    'short_message' => $content['short_message'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                DB::table('notifications_templates_translations')->insert(
+                    [
+                        'notification_template_id' => $templateId,
+                        'locale' => $locale,
+                        'subject' => $content['subject'],
+                        'title' => $content['title'],
+                        'body' => $content['body'],
+                        'short_message' => $content['short_message'],
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
             }
 
             foreach ($data['variables'] as $var) {
-                DB::table('notifications_templates_variables')->insert([
-                    'notification_template_id' => $templateId,
-                    'key' => $var['key'],
-                    'description' => $var['description'],
-                    'example' => $var['example'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                DB::table('notifications_templates_variables')->insert(
+                    [
+                        'notification_template_id' => $templateId,
+                        'key' => $var['key'],
+                        'description' => $var['description'],
+                        'example' => $var['example'],
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
             }
         }
     }

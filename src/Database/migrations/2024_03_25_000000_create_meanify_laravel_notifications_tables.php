@@ -44,6 +44,7 @@ return new class extends Migration
             $table->unsignedBigInteger('notification_template_id')->nullable();
             $table->string('locale', 10); // e.g.: pt-br, en-us
             $table->string('subject')->nullable(); // email subject
+            $table->string('title')->nullable(); // email subject
             $table->text('body')->nullable(); // rendered email body
             $table->string('short_message')->nullable(); // in-app
             $table->timestamps();
