@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
 use App\Models\NotificationTemplate;
 use Meanify\LaravelNotifications\Jobs\DispatchNotificationJob;
+use Meanify\LaravelNotifications\Jobs\SendNotificationEmailJob;
 
 class NotificationDispatcher
 {
@@ -20,7 +21,8 @@ class NotificationDispatcher
      * @param array $smtpConfigs
      * @param array $recipients
      * @param array $dynamicData
-     * @return void
+     * @param bool $sendEmailImmediately If "true", notification will not dispatch (the email will send at moment)
+     * @return bool
      */
     public function dispatch(
         string $notificationTemplateKey,
@@ -32,6 +34,7 @@ class NotificationDispatcher
         array $smtpConfigs = [],
         array $recipients = [],
         array $dynamicData = [],
+        bool $sendEmailImmediately = false,
     ): bool {
 
         $dispatched = true;
@@ -82,9 +85,16 @@ class NotificationDispatcher
 
                     DB::commit();
 
-                    DispatchNotificationJob::dispatch($notification)
-                        ->onQueue(config('meanify-laravel-notifications.default_queue_name', 'meanify_queue_notification'))
-                        ->delay(now()->addSeconds(3));
+                    if(!$sendEmailImmediately)
+                    {
+                        DispatchNotificationJob::dispatch($notification)
+                            ->onQueue(config('meanify-laravel-notifications.default_queue_name', 'meanify_queue_notification'))
+                            ->delay(now()->addSeconds(1));
+                    }
+                    else
+                    {
+                        $dispatched = SendNotificationEmailJob::execute($notification);
+                    }
 
                 }
                 catch (\Throwable $e2)

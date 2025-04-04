@@ -12,6 +12,7 @@ class NotificationBuilder
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
+    protected bool $sendEmailImmediately = false;
     protected array $smtpConfigs = [];
     protected array $recipients = [];
     protected array $dynamicData = [];
@@ -100,12 +101,14 @@ class NotificationBuilder
     /**
      * @param array $smtpConfigs
      * @param array $recipients
+     * @param bool $sendImmediately
      * @return $this
      */
-    public function forEmail(array $smtpConfigs, array $recipients): static
+    public function forEmail(array $smtpConfigs, array $recipients, bool $sendImmediately = false): static
     {
         $this->setSmtpConfigs($smtpConfigs);
         $this->setRecipients($recipients);
+        $this->sendEmailImmediately = $sendImmediately;
         return $this;
     }
 
@@ -152,6 +155,7 @@ class NotificationBuilder
             $this->smtpConfigs,
             $this->recipients,
             $this->dynamicData,
+            $this->sendEmailImmediately
         );
     }
 }

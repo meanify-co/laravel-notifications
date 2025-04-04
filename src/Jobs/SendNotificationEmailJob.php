@@ -41,48 +41,77 @@ class SendNotificationEmailJob implements ShouldQueue
             return;
         }
 
-        $smtp = $this->notification->payload['__smtp'] ?? null;
+        self::execute($this->notification);
+    }
 
-        if ($smtp) {
-
-            try
-            {
-                $password = Crypt::decrypt($smtp['password']);
-            }
-            catch (\Exception $e)
-            {
-                $password = $smtp['password'];
-            }
-
-            config([
-                'mail.default'                 => 'smtp',
-                'mail.mailers.smtp.host'       => $smtp['host'] ?? '',
-                'mail.mailers.smtp.port'       => $smtp['port'] ?? 587,
-                'mail.mailers.smtp.encryption' => $smtp['encryption'] ?? 'tls',
-                'mail.mailers.smtp.username'   => $smtp['username'] ?? null,
-                'mail.mailers.smtp.password'   => $password,
-                'mail.from.address'            => $smtp['from_address'] ?? config('mail.from.address'),
-                'mail.from.name'               => $smtp['from_name'] ?? config('mail.from.name'),
-            ]);
-        }
-
-        $emails  = $this->notification->payload['__recipients'] ?? [];
-
-        $html    = app(NotificationRenderer::class)->renderEmail($this->notification);
-
-        $subject = trim(($smtp['subject_prefix'] ?? '') .' '.$this->notification->payload['subject'] ?? 'App notification');
-
-        foreach ($emails as $email)
+    /**
+     * @param $notification
+     * @return bool
+     */
+    public static function execute($notification): bool
+    {
+        try
         {
-            $html = str_replace('{{recipient}}', Crypt::encrypt($email), $html);
-            
-            Mail::html($html, function ($message) use ($email, $subject) {
-                $message->to($email);
-                $message->subject($subject);
-            });
-        }
+            $smtp = $notification->payload['__smtp'] ?? null;
 
-        $this->notification->update(['status' => 'sent', 'sent_at' => now()]);
+            if ($smtp) {
+
+                try
+                {
+                    $password = Crypt::decrypt($smtp['password']);
+                }
+                catch (\Exception $e)
+                {
+                    $password = $smtp['password'];
+                }
+
+                config([
+                    'mail.default'                 => 'smtp',
+                    'mail.mailers.smtp.host'       => $smtp['host'] ?? '',
+                    'mail.mailers.smtp.port'       => $smtp['port'] ?? 587,
+                    'mail.mailers.smtp.encryption' => $smtp['encryption'] ?? 'tls',
+                    'mail.mailers.smtp.username'   => $smtp['username'] ?? null,
+                    'mail.mailers.smtp.password'   => $password,
+                    'mail.from.address'            => $smtp['from_address'] ?? config('mail.from.address'),
+                    'mail.from.name'               => $smtp['from_name'] ?? config('mail.from.name'),
+                ]);
+            }
+
+            $emails  = $notification->payload['__recipients'] ?? [];
+
+            $html    = app(NotificationRenderer::class)->renderEmail($notification);
+
+            $subject = trim(($smtp['subject_prefix'] ?? '') .' '.$notification->payload['subject'] ?? 'App notification');
+
+            foreach ($emails as $email)
+            {
+                $html = str_replace('{{recipient}}', Crypt::encrypt($email), $html);
+
+                Mail::html($html, function ($message) use ($email, $subject) {
+                    $message->to($email);
+                    $message->subject($subject);
+                });
+            }
+
+            $notification->update(['status' => 'sent', 'sent_at' => now()]);
+
+            return true;
+        }
+        catch (\Throwable $e)
+        {
+            $notification->update(['status' => 'failed']);
+
+            Log::emergency('Email notification failed', [
+                'notification_id' => $notification->id,
+                'exception' => [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'message' => $e->getMessage(),
+                ],
+            ]);
+
+            return false;
+        }
     }
 
     /**
