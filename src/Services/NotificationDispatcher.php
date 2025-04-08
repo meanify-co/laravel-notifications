@@ -18,7 +18,8 @@ class NotificationDispatcher
      * @param int|null $accountId
      * @param int|null $applicationId
      * @param int|null $sessionId
-     * @param array $smtpConfigs
+     * @param string $mailDriverType
+     * @param array $mailDriverConfigs
      * @param array $recipients
      * @param array $dynamicData
      * @param bool $sendEmailImmediately If "true", notification will not dispatch (the email will send at moment)
@@ -31,7 +32,8 @@ class NotificationDispatcher
         ?int $accountId = null,
         ?int $applicationId = null,
         ?int $sessionId = null,
-        array $smtpConfigs = [],
+        string $mailDriverType = 'smtp',
+        array $mailDriverConfigs = [],
         array $recipients = [],
         array $dynamicData = [],
         bool $sendEmailImmediately = false,
@@ -67,11 +69,14 @@ class NotificationDispatcher
                         $payload['__recipients'] = $recipients;
                     }
 
-                    if (!empty($smtpConfigs))
+                    if (isset($mailDriverType) and !empty($mailDriverConfigs))
                     {
-                        $payload['__smtp'] = $smtpConfigs;
+                        $payload['__mail'] = [
+                            'driver'  => $mailDriverType,
+                            'configs' => $mailDriverConfigs,
+                        ];
                     }
-
+                    
                     $notification = Notification::create([
                         'notification_template_id' => $template->id,
                         'user_id'                  => $user->id ?? null,

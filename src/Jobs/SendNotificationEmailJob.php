@@ -2,6 +2,8 @@
 
 namespace Meanify\LaravelNotifications\Jobs;
 
+use GuzzleHttp\Client;
+use http\Params;
 use Illuminate\Bus\Queueable;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
@@ -11,7 +13,10 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use App\Models\Notification;
+use Mailgun\Mailgun;
 use Meanify\LaravelNotifications\Support\NotificationRenderer;
+use Sendpulse\RestApi\ApiClient;
+use Sendpulse\RestApi\Storage\FileStorage;
 
 class SendNotificationEmailJob implements ShouldQueue
 {
@@ -52,45 +57,33 @@ class SendNotificationEmailJob implements ShouldQueue
     {
         try
         {
-            $smtp = $notification->payload['__smtp'] ?? null;
+            $mail = $notification->payload['__mail'] ?? null;
 
-            if ($smtp) {
+            $recipients  = $notification->payload['__recipients'] ?? [];
 
-                try
-                {
-                    $password = Crypt::decrypt($smtp['password']);
-                }
-                catch (\Exception $e)
-                {
-                    $password = $smtp['password'];
-                }
+            $html = app(NotificationRenderer::class)->renderEmail($notification);
 
-                config([
-                    'mail.default'                 => 'smtp',
-                    'mail.mailers.smtp.host'       => $smtp['host'] ?? '',
-                    'mail.mailers.smtp.port'       => $smtp['port'] ?? 587,
-                    'mail.mailers.smtp.encryption' => $smtp['encryption'] ?? 'tls',
-                    'mail.mailers.smtp.username'   => $smtp['username'] ?? null,
-                    'mail.mailers.smtp.password'   => $password,
-                    'mail.from.address'            => $smtp['from_address'] ?? config('mail.from.address'),
-                    'mail.from.name'               => $smtp['from_name'] ?? config('mail.from.name'),
-                ]);
-            }
+            $subject = $notification->payload['subject'] ?? 'App notification';
 
-            $emails  = $notification->payload['__recipients'] ?? [];
-
-            $html    = app(NotificationRenderer::class)->renderEmail($notification);
-
-            $subject = trim(($smtp['subject_prefix'] ?? '') .' '.$notification->payload['subject'] ?? 'App notification');
-
-            foreach ($emails as $email)
+            if($mail['driver'] === 'smtp')
             {
-                $html = str_replace('{{recipient}}', Crypt::encrypt($email), $html);
-
-                Mail::html($html, function ($message) use ($email, $subject) {
-                    $message->to($email);
-                    $message->subject($subject);
-                });
+                self::sendEmailWithSmtp($mail['configs'], $subject, $html, $recipients);
+            }
+            else if($mail['driver'] === 'mailgun')
+            {
+                self::sendEmailWithMailgun($mail['configs'], $subject, $html, $recipients);
+            }
+            else if($mail['driver'] === 'sendgrid')
+            {
+                self::sendEmailWithSendGrid($mail['configs'], $subject, $html, $recipients);
+            }
+            else if($mail['driver'] === 'sendpulse')
+            {
+                self::sendEmailWithSendPulse($mail['configs'], $subject, $html, $recipients);
+            }
+            else
+            {
+                throw new \Exception('Invalid driver to send email: ' . $mail['driver']);
             }
 
             $notification->update(['status' => 'sent', 'sent_at' => now()]);
@@ -113,6 +106,144 @@ class SendNotificationEmailJob implements ShouldQueue
             return false;
         }
     }
+
+    /**
+     * @param array $mailConfigs
+     * @param string $subject
+     * @param string $body
+     * @param array $recipients
+     * @return void
+     */
+    protected static function sendEmailWithSmtp(array $mailConfigs, string $subject, string $body, array $recipients)
+    {
+        try
+        {
+            $password = Crypt::decrypt($mailConfigs['password']);
+        }
+        catch (\Exception $e)
+        {
+            $password = $mailConfigs['password'];
+        }
+
+        config([
+            'mail.default'                 => 'smtp',
+            'mail.mailers.smtp.host'       => $mailConfigs['host'] ?? '',
+            'mail.mailers.smtp.port'       => $mailConfigs['port'] ?? 587,
+            'mail.mailers.smtp.encryption' => $mailConfigs['encryption'] ?? 'tls',
+            'mail.mailers.smtp.username'   => $mailConfigs['username'] ?? null,
+            'mail.mailers.smtp.password'   => $password,
+            'mail.from.address'            => $mailConfigs['from_address'] ?? config('mail.from.address'),
+            'mail.from.name'               => $mailConfigs['from_name'] ?? config('mail.from.name'),
+        ]);
+
+        foreach ($recipients as $recipient)
+        {
+            $html = str_replace('{{recipient}}', Crypt::encrypt($recipient), $body);
+
+            Mail::html($html, function ($message) use ($recipient, $subject) {
+                $message->to($recipient);
+                $message->subject($subject);
+            });
+        }
+    }
+
+    /**
+     * @param array $mailConfigs
+     * @param string $subject
+     * @param string $body
+     * @param array $recipients
+     * @return void
+     */
+    protected static function sendEmailWithMailgun(array $mailConfigs, string $subject, string $body, array $recipients)
+    {
+        $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
+        $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
+
+        foreach ($recipients as $recipient)
+        {
+            $html = str_replace('{{recipient}}', Crypt::encrypt($recipient), $body);
+
+            $mailgun = \Mailgun\Mailgun::create($mailConfigs['api_key'], $mailConfigs['endpoint']);
+
+            $mailgun->messages()->send($mailConfigs['domain'],[
+                'from'    => $mailFromName . ' <'.$mailFromAddress.'>',
+                'to'      => $recipient,
+                'subject' => $subject,
+                'html'    => $html
+            ]);
+        }
+    }
+
+    /**
+     * @param array $mailConfigs
+     * @param string $subject
+     * @param string $body
+     * @param array $recipients
+     * @return void
+     */
+    protected static function sendEmailWithSendGrid(array $mailConfigs, string $subject, string $body, array $recipients)
+    {
+        $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
+        $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
+
+        foreach ($recipients as $recipient)
+        {
+            $html = str_replace('{{recipient}}', Crypt::encrypt($recipient), $body);
+
+            $email = new \SendGrid\Mail\Mail();
+            $email->setFrom($mailFromAddress, $mailFromName);
+            $email->setSubject($subject);
+            $email->addTo($recipient);
+            $email->addContent(
+                "text/html", $html
+            );
+            $sendgrid = new \SendGrid($mailConfigs['api_key'], ['verify_ssl' => config('meanify-laravel-notifications.email.verify_ssl', true)]);
+            $sendgrid->send($email);
+        }
+    }
+
+    /**
+     * @param array $mailConfigs
+     * @param string $subject
+     * @param string $body
+     * @param array $recipients
+     * @return void
+     */
+    protected static function sendEmailWithSendPulse(array $mailConfigs, string $subject, string $body, array $recipients)
+    {
+        $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
+        $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
+
+        foreach ($recipients as $recipient)
+        {
+            $html = str_replace('{{recipient}}', Crypt::encrypt($recipient), $body);
+
+            $apiClient = new ApiClient($mailConfigs['client_id'], $mailConfigs['client_secret'], new FileStorage(storage_path('temp/')));
+
+            $emailData = [
+                'html'        => $html,
+                'subject'     => $subject,
+                'from'        => [
+                    'name'  => $mailFromName,
+                    'email' => $mailFromAddress,
+                ],
+                'to'          => [
+                    [
+                        'email' => $recipient,
+                    ]
+                ],
+            ];
+            
+            $result = $apiClient->smtpSendMail($emailData);
+
+            if (isset($result['result']) && $result['result'] === true) {
+                //Sent with successfully
+            } else {
+                throw new \Exception($result);
+            }
+        }
+    }
+
 
     /**
      * @param \Throwable $e

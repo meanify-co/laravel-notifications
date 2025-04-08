@@ -52,6 +52,7 @@ return [
         'queue' => 'meanify_queue_notification_emails',
         'tries' => 3,
         'backoff' => 30,
+        'verify_ssl' => false,
         'send_immediately' => false, // If true, bypasses the queue
     ],
 

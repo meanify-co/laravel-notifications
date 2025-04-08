@@ -2,6 +2,7 @@
 
 namespace Meanify\LaravelNotifications\Support;
 
+use Meanify\LaravelNotifications\Services\MailDriverService;
 use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 
 class NotificationBuilder
@@ -13,7 +14,8 @@ class NotificationBuilder
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
     protected bool $sendEmailImmediately = false;
-    protected array $smtpConfigs = [];
+    protected string $mailDriverType = 'smtp';
+    protected array $mailDriverConfigs = [];
     protected array $recipients = [];
     protected array $dynamicData = [];
 
@@ -99,26 +101,29 @@ class NotificationBuilder
     }
 
     /**
-     * @param array $smtpConfigs
+     * @param string $mailDriverType
+     * @param array $mailDriverConfigs
      * @param array $recipients
      * @param bool $sendImmediately
      * @return $this
      */
-    public function forEmail(array $smtpConfigs, array $recipients, bool $sendImmediately = false): static
+    public function forEmail(string $mailDriverType, array $mailDriverConfigs, array $recipients, bool $sendImmediately = false): static
     {
-        $this->setSmtpConfigs($smtpConfigs);
+        $this->setMailDriver($mailDriverType, $mailDriverConfigs);
         $this->setRecipients($recipients);
         $this->sendEmailImmediately = $sendImmediately;
         return $this;
     }
 
     /**
-     * @param array $configs
+     * @param string $mailDriverType
+     * @param array $mailDriverConfigs
      * @return void
      */
-    protected function setSmtpConfigs(array $configs)
+    protected function setMailDriver(string $mailDriverType, array $mailDriverConfigs): void
     {
-        $this->smtpConfigs = $configs;
+        $this->mailDriverType    = $mailDriverType;
+        $this->mailDriverConfigs = MailDriverService::getParams($mailDriverType, $mailDriverConfigs);
     }
 
     /**
@@ -152,7 +157,8 @@ class NotificationBuilder
             $this->accountId,
             $this->applicationId,
             $this->sessionId,
-            $this->smtpConfigs,
+            $this->mailDriverType,
+            $this->mailDriverConfigs,
             $this->recipients,
             $this->dynamicData,
             $this->sendEmailImmediately
