@@ -20,11 +20,6 @@ if (! function_exists('meanify_notifications'))
         }
         else
         {
-            if($notification_template_key === null or $to_user === null)
-            {
-                throw new \Exception("Notification template key and to_user are required");
-            }
-
             return NotificationBuilder::make($notification_template_key, $to_user, $locale);
         }
     }
