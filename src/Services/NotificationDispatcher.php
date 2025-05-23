@@ -2,6 +2,7 @@
 
 namespace Meanify\LaravelNotifications\Services;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Notification;
@@ -13,7 +14,7 @@ class NotificationDispatcher
 {
     /**
      * @param string $notificationTemplateKey
-     * @param object $user
+     * @param ?object $user
      * @param string $locale
      * @param int|null $accountId
      * @param int|null $applicationId
@@ -22,12 +23,13 @@ class NotificationDispatcher
      * @param array $mailDriverConfigs
      * @param array $recipients
      * @param array $dynamicData
+     * @param Carbon|null $scheduledTo
      * @param bool $sendEmailImmediately If "true", notification will not dispatch (the email will send at moment)
      * @return bool
      */
     public function dispatch(
         string $notificationTemplateKey,
-        object $user,
+        ?object $user,
         string $locale,
         ?int $accountId = null,
         ?int $applicationId = null,
@@ -36,6 +38,7 @@ class NotificationDispatcher
         array $mailDriverConfigs = [],
         array $recipients = [],
         array $dynamicData = [],
+        ?Carbon $scheduledTo = null,
         bool $sendEmailImmediately = false,
     ): bool {
 
@@ -57,11 +60,11 @@ class NotificationDispatcher
                     $translation = $template->translations->where('locale', $locale)->first();
 
                     $payload = [
+                        'dynamic_data'  => $dynamicData,
+                        'short_message' => $this->interpolate($translation->short_message ?? '', $dynamicData),
                         'subject'       => $this->interpolate($translation->subject ?? '', $dynamicData),
                         'title'         => $this->interpolate($translation->title ?? '', $dynamicData),
                         'body'          => $this->interpolate($translation->body ?? '', $dynamicData),
-                        'short_message' => $this->interpolate($translation->short_message ?? '', $dynamicData),
-                        'dynamic_data'  => $dynamicData,
                     ];
 
                     if (!empty($recipients))
@@ -79,13 +82,13 @@ class NotificationDispatcher
                     
                     $notification = Notification::create([
                         'notification_template_id' => $template->id,
-                        'user_id'                  => $user->id ?? null,
+                        'user_id'                  => $user?->id,
                         'application_id'           => $applicationId,
                         'session_id'               => $sessionId,
                         'account_id'               => $accountId,
                         'channel'                  => $channel,
                         'payload'                  => $payload,
-                        'status'                   => 'pending',
+                        'status'                   => Notification::NOTIFICATION_STATUS_PENDING,
                     ]);
 
                     DB::commit();
@@ -94,7 +97,7 @@ class NotificationDispatcher
                     {
                         DispatchNotificationJob::dispatch($notification)
                             ->onQueue(config('meanify-laravel-notifications.default_queue_name', 'meanify_queue_notification'))
-                            ->delay(now()->addSeconds(1));
+                            ->delay($scheduledTo ?? now()->addSeconds(1));
                     }
                     else
                     {

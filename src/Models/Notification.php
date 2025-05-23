@@ -4,6 +4,11 @@ namespace App\Models;
 
 class Notification extends \Illuminate\Database\Eloquent\Model
 {
+    const NOTIFICATION_STATUS_PENDING = 'pending';
+    const NOTIFICATION_STATUS_PROCESSING = 'processing';
+    const NOTIFICATION_STATUS_FAILED = 'failed';
+    const NOTIFICATION_STATUS_SENT = 'sent';
+
     /**
      * @var string
      */
@@ -21,15 +26,21 @@ class Notification extends \Illuminate\Database\Eloquent\Model
         'channel',
         'payload',
         'status',
+        'scheduled_to',
         'sent_at',
+        'failed_at',
+        'failed_log',
     ];
 
     /**
      * @var string[]
      */
     protected $casts = [
-        'payload' => 'array',
-        'sent_at' => 'datetime',
+        'payload'      => 'array',
+        'failed_log'   => 'object',
+        'sent_at'      => 'datetime',
+        'scheduled_to' => 'datetime',
+        'failed_at'    => 'datetime',
     ];
 
     /**

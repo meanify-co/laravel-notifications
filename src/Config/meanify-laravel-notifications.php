@@ -11,7 +11,7 @@ return [
     |
     */
 
-    'default_queue_name' => 'meanify_queue_notification',
+    'default_queue_name' => 'meanify.queue.notifications',
 
     /*
     |--------------------------------------------------------------------------
@@ -49,7 +49,7 @@ return [
 
     'email' => [
         'enabled' => true,
-        'queue' => 'meanify_queue_notification_emails',
+        'queue' => 'meanify.queue.notifications.emails',
         'tries' => 3,
         'backoff' => 30,
         'verify_ssl' => false,
@@ -68,7 +68,7 @@ return [
 
     'in_app' => [
         'enabled' => true,
-        'queue' => 'meanify_queue_notification_in_app',
+        'queue' => 'meanify.queue.notifications.in_app',
     ],
 
     /*

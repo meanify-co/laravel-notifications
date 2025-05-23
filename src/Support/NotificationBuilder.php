@@ -2,6 +2,7 @@
 
 namespace Meanify\LaravelNotifications\Support;
 
+use Carbon\Carbon;
 use Meanify\LaravelNotifications\Services\MailDriverService;
 use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 
@@ -13,6 +14,7 @@ class NotificationBuilder
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
     protected ?int $sessionId = null;
+    protected ?Carbon $scheduledTo = null;
     protected bool $sendEmailImmediately = false;
     protected string $mailDriverType = 'smtp';
     protected array $mailDriverConfigs = [];
@@ -21,11 +23,11 @@ class NotificationBuilder
 
     /**
      * @param string $notificationTemplateKey
-     * @param object $user
+     * @param ?object $user
      * @param string|null $locale
      * @return static
      */
-    public static function make(string $notificationTemplateKey, object $user, ?string $locale): static
+    public static function make(string $notificationTemplateKey, ?object $user, ?string $locale): static
     {
         return new static($notificationTemplateKey, $user, $locale);
     }
@@ -146,6 +148,16 @@ class NotificationBuilder
     }
 
     /**
+     * @param Carbon $scheduledTo
+     * @return $this
+     */
+    public function scheduledTo(Carbon $scheduledTo): static
+    {
+        $this->scheduledTo = $scheduledTo;
+        return $this;
+    }
+
+    /**
      * @return bool
      */
     public function send(): bool
@@ -161,6 +173,7 @@ class NotificationBuilder
             $this->mailDriverConfigs,
             $this->recipients,
             $this->dynamicData,
+            $this->scheduledTo,
             $this->sendEmailImmediately
         );
     }

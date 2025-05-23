@@ -70,11 +70,12 @@ class TestNotificationCommand extends Command
             $overrideEmails = array_map('trim', explode(',', $emails));
         }
 
-        NotificationBuilder::make($user, $locale)
+        NotificationBuilder::make($templateKey, $user, $locale)
             ->onAccount($accountId)
             ->onApplication($applicationId)
             ->onSession($sessionId)
-            ->email($smtpConfigs, $overrideEmails, $templateKey)
+            ->forEmail('smtp',$smtpConfigs, $overrideEmails)
+            ->scheduledTo(now())
             ->with($replacements)
             ->send();
 

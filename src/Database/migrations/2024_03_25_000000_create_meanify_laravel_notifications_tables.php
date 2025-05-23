@@ -73,9 +73,12 @@ return new class extends Migration
             $table->unsignedBigInteger('session_id')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->string('channel'); // email, in_app, etc.
-            $table->json('payload');
-            $table->enum('status', ['pending', 'sent', 'failed'])->default('pending');
+            $table->json('payload')->nullable();
+            $table->enum('status', ['pending', 'processing', 'sent', 'failed'])->default('pending');
+            $table->timestamp('scheduled_to')->nullable();
             $table->timestamp('sent_at')->nullable();
+            $table->timestamp('failed_at')->nullable();
+            $table->json('failed_log')->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');

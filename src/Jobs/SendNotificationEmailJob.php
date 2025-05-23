@@ -34,7 +34,7 @@ class SendNotificationEmailJob implements ShouldQueue
         $this->tries   = config('meanify-laravel-notifications.email.tries', 3);
         $this->backoff = config('meanify-laravel-notifications.email.backoff', 30);
 
-        $this->onQueue(config('meanify-laravel-notifications.email.queue', 'meanify_queue_notification_emails'));
+        $this->onQueue(config('meanify-laravel-notifications.email.queue', 'meanify.queue.notifications.emails'));
     }
 
     /**
@@ -57,6 +57,9 @@ class SendNotificationEmailJob implements ShouldQueue
     {
         try
         {
+            $notification->update(['status' => Notification::NOTIFICATION_STATUS_PROCESSING]);
+
+
             $mail = $notification->payload['__mail'] ?? null;
 
             $recipients  = $notification->payload['__recipients'] ?? [];
@@ -86,13 +89,24 @@ class SendNotificationEmailJob implements ShouldQueue
                 throw new \Exception('Invalid driver to send email: ' . $mail['driver']);
             }
 
-            $notification->update(['status' => 'sent', 'sent_at' => now()]);
+            $notification->update(['status' => Notification::NOTIFICATION_STATUS_SENT, 'sent_at' => now()]);
 
             return true;
         }
         catch (\Throwable $e)
         {
-            $notification->update(['status' => 'failed']);
+            $notification->update([
+                'status' => Notification::NOTIFICATION_STATUS_FAILED,
+                'failed_at' => now(),
+                'failed_log' => [
+                    'exception' => [
+                        'code' => $e->getCode(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                        'message' => $e->getMessage(),
+                    ],
+                ]
+            ]);
 
             Log::emergency('Email notification failed', [
                 'notification_id' => $notification->id,
