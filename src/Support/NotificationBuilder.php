@@ -9,7 +9,7 @@ use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 class NotificationBuilder
 {
     protected string $notificationTemplateKey;
-    protected object $user;
+    protected ?object $user = null;
     protected string $locale;
     protected ?int $accountId = null;
     protected ?int $applicationId = null;
@@ -55,10 +55,10 @@ class NotificationBuilder
     }
 
     /**
-     * @param object $user
+     * @param object|null $user
      * @return void
      */
-    protected function setUser(object $user)
+    protected function setUser(?object $user)
     {
         $this->user = $user;
     }
