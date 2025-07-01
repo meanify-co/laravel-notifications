@@ -60,21 +60,42 @@ class NotificationTemplateSeeder extends Seeder
                 'channels'     => ['email'],
                 'translations' => [
                     'pt_BR' => [
-                        'subject'       => 'Novo login detectado',
-                        'title'         => 'Novo login detectado',
-                        'body'          => 'Um novo login foi detectado em sua conta. IP: {{ ip }} - Navegador: {{ browser }}',
-                        'short_message' => null,
+                        'subject'       => 'Novo login na sua conta',
+                        'title'         => 'Detectamos um novo acesso à sua conta',
+                        'body'          => 'Identificamos um novo login na sua conta em <strong>{{ app }}</strong>. <br><br>
+                        <strong>IP:</strong> {{ ip }} <br>
+                        <strong>Navegador:</strong> {{ browser }} <br>
+                        <strong>Localização:</strong> {{ location }} <br><br>
+                        
+                        <strong>O que você deve fazer:</strong><br>
+                        - Se esse acesso foi feito por você, nenhuma ação é necessária.<br>
+                        - Se você <u>não reconhece</u> este acesso, recomendamos que altere sua senha imediatamente e revise suas sessões ativas.<br><br>
+                        
+                        Para sua segurança, mantenha seu e-mail e senha atualizados e evite reutilizar senhas em outros serviços.',
+                        'short_message' => 'Novo login detectado na sua conta. Verifique os detalhes.',
                     ],
                     'en_US' => [
-                        'subject'       => 'New login detected',
-                        'title'         => 'New login detected',
-                        'body'          => 'A new login was detected on your account. IP: {{ ip }} - Browser: {{ browser }}',
-                        'short_message' => null,
+                        'subject'       => 'New login to your account',
+                        'title'         => 'A new login was detected',
+                        'body'          => 'We detected a new login to your account on <strong>{{ app }}</strong>. <br><br>
+                        <strong>IP:</strong> {{ ip }} <br>
+                        <strong>Browser:</strong> {{ browser }} <br>
+                        <strong>Location:</strong> {{ location }} <br><br>
+                        
+                        <strong>What you should do:</strong><br>
+                        - If this was you, no further action is needed.<br>
+                        - If you <u>don’t recognize</u> this login, we strongly recommend that you change your password immediately and review active sessions.<br><br>
+                        
+                        For your safety, always use a strong, unique password and keep your email secure.',
+                        'short_message' => 'New login detected on your account. Please review.',
                     ],
+
                 ],
                 'variables' => [
                     ['key' => 'ip', 'description' => 'Endereço IP', 'example' => '192.168.0.1'],
                     ['key' => 'browser', 'description' => 'Navegador ou dispositivo', 'example' => 'Chrome no Windows'],
+                    ['key' => 'app', 'description' => 'Nome da aplicação', 'example' => 'admin.goimpacto.com'],
+                    ['key' => 'location', 'description' => 'Localização com base no IP de origem', 'example' => 'São Paulo, Brasil'],
                 ],
             ],
             [
@@ -146,13 +167,13 @@ class NotificationTemplateSeeder extends Seeder
                     'pt_BR' => [
                         'subject' => 'Você foi convidado para o {{ system_name }}',
                         'title' => 'Convite para acessar o {{ system_name }}',
-                        'body' => 'Olá {{ first_name }} {{ last_name }},<br><br>Você foi convidado para acessar o sistema <strong>{{ system_name }}</strong>.<br>Ao clicar no botão abaixo, seu convite será aceito automaticamente.<br><br>Sua senha foi gerada automaticamente e poderá ser alterada após o primeiro acesso.',
+                        'body' => 'Você foi convidado por {{ organization_name }} para acessar o sistema <strong>{{ system_name }}</strong>.<br>Ao clicar no botão abaixo, seu convite será aceito automaticamente.<br><br>Sua senha foi gerada automaticamente e poderá ser alterada após o primeiro acesso.',
                         'short_message' => null,
                     ],
                     'en_US' => [
                         'subject' => 'You were invited to join {{ system_name }}',
                         'title' => 'You’ve been invited to {{ system_name }}',
-                        'body' => 'Hello {{ first_name }} {{ last_name }},<br><br>You’ve been invited to join <strong>{{ system_name }}</strong>.<br>Click the button below to accept your invitation.<br><br>A temporary password has been generated and can be changed after your first login.',
+                        'body' => 'You’ve been invited by {{ organization_name }} to join <strong>{{ system_name }}</strong>.<br>Click the button below to accept your invitation.<br><br>A temporary password has been generated and can be changed after your first login.',
                         'short_message' => null,
                     ],
                 ],
@@ -160,6 +181,7 @@ class NotificationTemplateSeeder extends Seeder
                     ['key' => 'first_name', 'description' => 'Primeiro nome do usuário', 'example' => 'Ana'],
                     ['key' => 'last_name', 'description' => 'Sobrenome do usuário', 'example' => 'Silva'],
                     ['key' => 'system_name', 'description' => 'Nome da plataforma', 'example' => 'Meanify'],
+                    ['key' => 'organization_name', 'description' => 'Nome da organização', 'example' => 'Empresa XYZ'],
                 ],
             ],
             [
@@ -224,10 +246,10 @@ class NotificationTemplateSeeder extends Seeder
                     [
                         'notification_template_id' => $templateId,
                         'locale'                   => $locale,
-                        'subject'                  => $content['subject'],
-                        'title'                    => $content['title'],
-                        'body'                     => $content['body'],
-                        'short_message'            => $content['short_message'],
+                        'subject'                  => $this->applyNullFallback($content['subject'] ?? '', $data['variables'] ?? []),
+                        'title'                    => $this->applyNullFallback($content['title'] ?? '', $data['variables'] ?? []),
+                        'body'                     => $this->wrapWithIsset($content['body'] ?? '', $data['variables'] ?? []),
+                        'short_message'            => $this->applyNullFallback($content['short_message'] ?? '', $data['variables'] ?? []),
                         'updated_at'               => now(),
                         'created_at'               => now(),
                     ]
@@ -248,5 +270,48 @@ class NotificationTemplateSeeder extends Seeder
                 );
             }
         }
+    }
+
+    /**
+     * @param string $text
+     * @param array $variables
+     * @return string
+     */
+    protected function applyNullFallback(string $text, array $variables): string
+    {
+        foreach ($variables as $var) {
+            $key = $var['key'];
+            $example = addslashes($var['example'] ?? '');
+            $text = preg_replace(
+                '/{{\s*' . preg_quote($key, '/') . '\s*}}/',
+                "{{ $key ?? '$example' }}",
+                $text
+            );
+        }
+
+        return $text;
+    }
+
+    /**
+     * @param string $body
+     * @param array $variables
+     * @return string
+     */
+    protected function wrapWithIsset(string $body, array $variables): string
+    {
+        foreach ($variables as $var) {
+            $key = $var['key'];
+
+            //Adds @isset only where {{ key }} or {!! key !!} appears
+            $body = preg_replace_callback(
+                "/(<[^>]*>)?([^@]*)({{ ?$key ?}}|{!! ?$key ?!!})([^<]*)/i",
+                function ($matches) use ($key) {
+                    return "@isset($key)\n" . $matches[0] . "\n@endisset";
+                },
+                $body
+            );
+        }
+
+        return $body;
     }
 }

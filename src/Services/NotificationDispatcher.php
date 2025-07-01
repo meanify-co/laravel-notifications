@@ -138,11 +138,19 @@ class NotificationDispatcher
      */
     protected function interpolate(string $text, array $data): string
     {
-        foreach ($data as $key => $value)
-        {
-            $text = str_replace('{!! '.$key.' !!}', $value, $text);
-            $text = str_replace('{{ '.$key.' }}', $value, $text);
+        // Process @isset
+        $text = preg_replace_callback('/@isset\((.*?)\)(.*?)@endisset/s', function ($matches) use ($data) {
+            $key = trim($matches[1]);
+            return array_key_exists($key, $data) ? $matches[2] : '';
+        }, $text);
+
+        // replace escapes {{ key }} and {!! key !!}
+        foreach ($data as $key => $value) {
+            $text = str_replace(['{{ '.$key.' }}', '{!! '.$key.' !!}'], $value, $text);
         }
+
+        // remove any unsolved var
+        $text = preg_replace('/{{\s*[^}]+\s*}}/', '', $text);
 
         return $text;
     }
