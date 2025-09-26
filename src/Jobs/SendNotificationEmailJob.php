@@ -23,6 +23,8 @@ class SendNotificationEmailJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public Notification $notification;
+    public int $tries;
+    public int $backoff;
 
     /**
      * @param Notification $notification
@@ -63,6 +65,7 @@ class SendNotificationEmailJob implements ShouldQueue
             $mail = $notification->payload['__mail'] ?? null;
 
             $recipients  = $notification->payload['__recipients'] ?? [];
+            $attachments = $notification->payload['__attachments'] ?? [];
 
             $html = app(NotificationRenderer::class)->renderEmail($notification);
 
@@ -70,19 +73,19 @@ class SendNotificationEmailJob implements ShouldQueue
 
             if($mail['driver'] === 'smtp')
             {
-                self::sendEmailWithSmtp($mail['configs'], $subject, $html, $recipients);
+                self::sendEmailWithSmtp($mail['configs'], $subject, $html, $recipients, $attachments);
             }
             else if($mail['driver'] === 'mailgun')
             {
-                self::sendEmailWithMailgun($mail['configs'], $subject, $html, $recipients);
+                self::sendEmailWithMailgun($mail['configs'], $subject, $html, $recipients, $attachments);
             }
             else if($mail['driver'] === 'sendgrid')
             {
-                self::sendEmailWithSendGrid($mail['configs'], $subject, $html, $recipients);
+                self::sendEmailWithSendGrid($mail['configs'], $subject, $html, $recipients, $attachments);
             }
             else if($mail['driver'] === 'sendpulse')
             {
-                self::sendEmailWithSendPulse($mail['configs'], $subject, $html, $recipients);
+                self::sendEmailWithSendPulse($mail['configs'], $subject, $html, $recipients, $attachments);
             }
             else
             {
@@ -126,9 +129,10 @@ class SendNotificationEmailJob implements ShouldQueue
      * @param string $subject
      * @param string $body
      * @param array $recipients
+     * @param array $attachments
      * @return void
      */
-    protected static function sendEmailWithSmtp(array $mailConfigs, string $subject, string $body, array $recipients)
+    protected static function sendEmailWithSmtp(array $mailConfigs, string $subject, string $body, array $recipients, array $attachments = [])
     {
         try
         {
@@ -154,9 +158,27 @@ class SendNotificationEmailJob implements ShouldQueue
         {
             $html = str_replace('{{recipient}}', Crypt::encrypt($recipient), $body);
 
-            Mail::html($html, function ($message) use ($recipient, $subject) {
+            Mail::html($html, function ($message) use ($recipient, $subject, $attachments) {
                 $message->to($recipient);
                 $message->subject($subject);
+                
+                // Adicionar anexos
+                foreach ($attachments as $attachment) {
+                    if (isset($attachment['content'])) {
+                        // Anexo com conteúdo base64
+                        $message->attachData(
+                            base64_decode($attachment['content']),
+                            $attachment['name'] ?? 'attachment',
+                            ['mime' => $attachment['mime'] ?? 'application/octet-stream']
+                        );
+                    } elseif (isset($attachment['path']) && file_exists($attachment['path'])) {
+                        // Anexo com caminho de arquivo
+                        $message->attach(
+                            $attachment['path'],
+                            ['as' => $attachment['name'] ?? basename($attachment['path'])]
+                        );
+                    }
+                }
             });
         }
     }
@@ -166,9 +188,10 @@ class SendNotificationEmailJob implements ShouldQueue
      * @param string $subject
      * @param string $body
      * @param array $recipients
+     * @param array $attachments
      * @return void
      */
-    protected static function sendEmailWithMailgun(array $mailConfigs, string $subject, string $body, array $recipients)
+    protected static function sendEmailWithMailgun(array $mailConfigs, string $subject, string $body, array $recipients, array $attachments = [])
     {
         $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
         $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
@@ -179,12 +202,41 @@ class SendNotificationEmailJob implements ShouldQueue
 
             $mailgun = \Mailgun\Mailgun::create($mailConfigs['api_key'], $mailConfigs['endpoint']);
 
-            $mailgun->messages()->send($mailConfigs['domain'],[
+            $messageData = [
                 'from'    => $mailFromName . ' <'.$mailFromAddress.'>',
                 'to'      => $recipient,
                 'subject' => $subject,
                 'html'    => $html
-            ]);
+            ];
+
+            $attachmentFiles = [];
+            // Adicionar anexos
+            foreach ($attachments as $attachment) {
+                if (isset($attachment['content'])) {
+                    // Anexo com conteúdo base64
+                    $tempFile = tempnam(sys_get_temp_dir(), 'mailgun_attachment_');
+                    file_put_contents($tempFile, base64_decode($attachment['content']));
+                    $attachmentFiles[] = [
+                        'filePath' => $tempFile,
+                        'filename' => $attachment['name'] ?? 'attachment'
+                    ];
+                } elseif (isset($attachment['path']) && file_exists($attachment['path'])) {
+                    // Anexo com caminho de arquivo
+                    $attachmentFiles[] = [
+                        'filePath' => $attachment['path'],
+                        'filename' => $attachment['name'] ?? basename($attachment['path'])
+                    ];
+                }
+            }
+
+            $mailgun->messages()->send($mailConfigs['domain'], $messageData, $attachmentFiles);
+
+            // Limpar arquivos temporários
+            foreach ($attachmentFiles as $file) {
+                if (strpos($file['filePath'], sys_get_temp_dir()) === 0) {
+                    @unlink($file['filePath']);
+                }
+            }
         }
     }
 
@@ -193,9 +245,10 @@ class SendNotificationEmailJob implements ShouldQueue
      * @param string $subject
      * @param string $body
      * @param array $recipients
+     * @param array $attachments
      * @return void
      */
-    protected static function sendEmailWithSendGrid(array $mailConfigs, string $subject, string $body, array $recipients)
+    protected static function sendEmailWithSendGrid(array $mailConfigs, string $subject, string $body, array $recipients, array $attachments = [])
     {
         $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
         $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
@@ -211,6 +264,32 @@ class SendNotificationEmailJob implements ShouldQueue
             $email->addContent(
                 "text/html", $html
             );
+
+            // Adicionar anexos
+            foreach ($attachments as $attachment) {
+                if (isset($attachment['content'])) {
+                    // Anexo com conteúdo base64
+                    $email->addAttachment(
+                        $attachment['content'],
+                        $attachment['mime'] ?? 'application/octet-stream',
+                        $attachment['name'] ?? 'attachment',
+                        'attachment'
+                    );
+                } elseif (isset($attachment['path']) && file_exists($attachment['path'])) {
+                    // Anexo com caminho de arquivo
+                    $fileContent = base64_encode(file_get_contents($attachment['path']));
+                    $mimeType = $attachment['mime'] ?? mime_content_type($attachment['path']) ?? 'application/octet-stream';
+                    $fileName = $attachment['name'] ?? basename($attachment['path']);
+                    
+                    $email->addAttachment(
+                        $fileContent,
+                        $mimeType,
+                        $fileName,
+                        'attachment'
+                    );
+                }
+            }
+
             $sendgrid = new \SendGrid($mailConfigs['api_key'], ['verify_ssl' => config('meanify-laravel-notifications.email.verify_ssl', true)]);
             $sendgrid->send($email);
         }
@@ -221,9 +300,10 @@ class SendNotificationEmailJob implements ShouldQueue
      * @param string $subject
      * @param string $body
      * @param array $recipients
+     * @param array $attachments
      * @return void
      */
-    protected static function sendEmailWithSendPulse(array $mailConfigs, string $subject, string $body, array $recipients)
+    protected static function sendEmailWithSendPulse(array $mailConfigs, string $subject, string $body, array $recipients, array $attachments = [])
     {
         $mailFromName    = $mailConfigs['from_name'] ?? config('mail.from.name');
         $mailFromAddress = $mailConfigs['from_address'] ?? config('mail.from.address');
@@ -247,13 +327,39 @@ class SendNotificationEmailJob implements ShouldQueue
                     ]
                 ],
             ];
+
+            // Adicionar anexos
+            if (!empty($attachments)) {
+                $emailData['attachments'] = [];
+                foreach ($attachments as $attachment) {
+                    if (isset($attachment['content'])) {
+                        // Anexo com conteúdo base64
+                        $emailData['attachments'][] = [
+                            'content' => $attachment['content'],
+                            'name' => $attachment['name'] ?? 'attachment',
+                            'type' => $attachment['mime'] ?? 'application/octet-stream'
+                        ];
+                    } elseif (isset($attachment['path']) && file_exists($attachment['path'])) {
+                        // Anexo com caminho de arquivo
+                        $fileContent = base64_encode(file_get_contents($attachment['path']));
+                        $mimeType = $attachment['mime'] ?? mime_content_type($attachment['path']) ?? 'application/octet-stream';
+                        $fileName = $attachment['name'] ?? basename($attachment['path']);
+                        
+                        $emailData['attachments'][] = [
+                            'content' => $fileContent,
+                            'name' => $fileName,
+                            'type' => $mimeType
+                        ];
+                    }
+                }
+            }
             
             $result = $apiClient->smtpSendMail($emailData);
 
             if (isset($result['result']) && $result['result'] === true) {
                 //Sent with successfully
             } else {
-                throw new \Exception($result);
+                throw new \Exception(is_array($result) ? json_encode($result) : (string)$result);
             }
         }
     }

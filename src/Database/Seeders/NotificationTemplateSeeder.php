@@ -63,10 +63,11 @@ class NotificationTemplateSeeder extends Seeder
                         'subject'       => 'Novo login na sua conta',
                         'title'         => 'Detectamos um novo acesso à sua conta',
                         'body'          => 'Identificamos um novo login na sua conta em <strong>{{ app }}</strong>. <br><br>
-                        <strong>IP:</strong> {{ ip }} <br>
-                        <strong>Navegador:</strong> {{ browser }} <br>
-                        <strong>Localização:</strong> {{ location }} <br><br>
-                        
+                        @isset(ip) <strong>IP:</strong> {{ ip }} <br> @endisset
+                        @isset(browser) <strong>Navegador:</strong> {{ browser }} <br> @endisset
+                        @isset(location) <strong>Localização:</strong> {{ location }} <br> @endisset
+   
+                        <br>
                         <strong>O que você deve fazer:</strong><br>
                         - Se esse acesso foi feito por você, nenhuma ação é necessária.<br>
                         - Se você <u>não reconhece</u> este acesso, recomendamos que altere sua senha imediatamente e revise suas sessões ativas.<br><br>
@@ -78,10 +79,10 @@ class NotificationTemplateSeeder extends Seeder
                         'subject'       => 'New login to your account',
                         'title'         => 'A new login was detected',
                         'body'          => 'We detected a new login to your account on <strong>{{ app }}</strong>. <br><br>
-                        <strong>IP:</strong> {{ ip }} <br>
-                        <strong>Browser:</strong> {{ browser }} <br>
-                        <strong>Location:</strong> {{ location }} <br><br>
-                        
+                        @isset(ip) <strong>IP:</strong> {{ ip }} <br> @endisset
+                        @isset(browser) <strong>Browser:</strong> {{ browser }} <br> @endisset
+                        @isset(location) <strong>Location:</strong> {{ location }} <br> @endisset
+                        <br>
                         <strong>What you should do:</strong><br>
                         - If this was you, no further action is needed.<br>
                         - If you <u>don’t recognize</u> this login, we strongly recommend that you change your password immediately and review active sessions.<br><br>
@@ -248,7 +249,7 @@ class NotificationTemplateSeeder extends Seeder
                         'locale'                   => $locale,
                         'subject'                  => $this->applyNullFallback($content['subject'] ?? '', $data['variables'] ?? []),
                         'title'                    => $this->applyNullFallback($content['title'] ?? '', $data['variables'] ?? []),
-                        'body'                     => $this->wrapWithIsset($content['body'] ?? '', $data['variables'] ?? []),
+                        'body'                     => $content['body'],
                         'short_message'            => $this->applyNullFallback($content['short_message'] ?? '', $data['variables'] ?? []),
                         'updated_at'               => now(),
                         'created_at'               => now(),
@@ -290,28 +291,5 @@ class NotificationTemplateSeeder extends Seeder
         }
 
         return $text;
-    }
-
-    /**
-     * @param string $body
-     * @param array $variables
-     * @return string
-     */
-    protected function wrapWithIsset(string $body, array $variables): string
-    {
-        foreach ($variables as $var) {
-            $key = $var['key'];
-
-            //Adds @isset only where {{ key }} or {!! key !!} appears
-            $body = preg_replace_callback(
-                "/(<[^>]*>)?([^@]*)({{ ?$key ?}}|{!! ?$key ?!!})([^<]*)/i",
-                function ($matches) use ($key) {
-                    return "@isset($key)\n" . $matches[0] . "\n@endisset";
-                },
-                $body
-            );
-        }
-
-        return $body;
     }
 }

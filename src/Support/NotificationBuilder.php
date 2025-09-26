@@ -20,6 +20,7 @@ class NotificationBuilder
     protected array $mailDriverConfigs = [];
     protected array $recipients = [];
     protected array $dynamicData = [];
+    protected array $attachments = [];
 
     /**
      * @param string $notificationTemplateKey
@@ -149,6 +150,21 @@ class NotificationBuilder
     }
 
     /**
+     * @param array $attachments Array of attachment configurations
+     * Each attachment should have:
+     * - 'path' (string): File path or content
+     * - 'name' (string, optional): Display name for the attachment
+     * - 'mime' (string, optional): MIME type of the attachment
+     * - 'content' (string, optional): Base64 encoded content (alternative to path)
+     * @return $this
+     */
+    public function withAttachments(array $attachments): static
+    {
+        $this->attachments = $attachments;
+        return $this;
+    }
+
+    /**
      * @param Carbon $scheduledTo
      * @return $this
      */
@@ -175,7 +191,8 @@ class NotificationBuilder
             $this->recipients,
             $this->dynamicData,
             $this->scheduledTo,
-            $this->sendEmailImmediately
+            $this->sendEmailImmediately,
+            $this->attachments
         );
     }
 }
