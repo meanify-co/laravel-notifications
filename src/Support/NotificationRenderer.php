@@ -16,6 +16,10 @@ class NotificationRenderer
     {
         $payload  = $notification->payload ?? [];
 
+        if (!empty($payload['__rendered_email']) && isset($payload['body'])) {
+            return (string) $payload['body'];
+        }
+
         $template = $notification->template;
 
         $layout = $template?->layout

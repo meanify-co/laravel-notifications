@@ -8,7 +8,7 @@ use Meanify\LaravelNotifications\Services\NotificationDispatcher;
 
 class NotificationBuilder
 {
-    protected string $notificationTemplateKey;
+    protected ?string $notificationTemplateKey = null;
     protected ?object $user = null;
     protected string $locale;
     protected ?int $accountId = null;
@@ -21,6 +21,9 @@ class NotificationBuilder
     protected array $recipients = [];
     protected array $dynamicData = [];
     protected array $attachments = [];
+    protected ?string $renderedHtml = null;
+    protected ?string $renderedSubject = null;
+    protected array $renderedPayload = [];
 
     /**
      * @param string $notificationTemplateKey
@@ -34,11 +37,27 @@ class NotificationBuilder
     }
 
     /**
+     * Cria um builder recebendo diretamente um HTML já renderizado para envio.
+     *
+     * @param string $renderedHtml
+     * @param object|null $user
+     * @param string|null $locale
+     * @param string|null $subject
+     * @param array $payload Dados adicionais para serem mesclados ao payload final
+     * @return static
+     */
+    public static function makeWithRenderedHtml(string $renderedHtml, ?object $user = null, ?string $locale = null, ?string $subject = null, array $payload = []): static
+    {
+        $instance = new static(null, $user, $locale);
+        return $instance->withRenderedHtml($renderedHtml, $subject, $payload);
+    }
+
+    /**
      * @param string $notificationTemplateKey
      * @param object|null $user
      * @param string|null $locale
      */
-    public function __construct(string $notificationTemplateKey, ?object $user = null, ?string $locale = null)
+    public function __construct(?string $notificationTemplateKey, ?object $user = null, ?string $locale = null)
     {
         $this->setNotificationTemplateKey($notificationTemplateKey);
         $this->setUser($user);
@@ -51,7 +70,7 @@ class NotificationBuilder
      * @param string $notificationTemplateKey
      * @return void
      */
-    protected function setNotificationTemplateKey(string $notificationTemplateKey)
+    protected function setNotificationTemplateKey(?string $notificationTemplateKey)
     {
         $this->notificationTemplateKey = $notificationTemplateKey;
     }
@@ -150,6 +169,24 @@ class NotificationBuilder
     }
 
     /**
+     * Define um HTML já renderizado (dinâmico) e opcionalmente um assunto específico.
+     *
+     * @param string $renderedHtml
+     * @param string|null $subject
+     * @param array $payload
+     * @return $this
+     */
+    public function withRenderedHtml(string $renderedHtml, ?string $subject = null, array $payload = []): static
+    {
+        $this->renderedHtml     = $renderedHtml;
+        $this->renderedSubject  = $subject;
+        $this->renderedPayload  = $payload;
+        $this->notificationTemplateKey = null;
+
+        return $this;
+    }
+
+    /**
      * @param array $attachments Array of attachment configurations
      * Each attachment should have:
      * - 'path' (string): File path or content
@@ -179,6 +216,10 @@ class NotificationBuilder
      */
     public function send(): bool
     {
+        if (empty($this->notificationTemplateKey) && $this->renderedHtml === null) {
+            throw new \InvalidArgumentException('Defina uma notification_template_key ou um HTML já renderizado antes de enviar.');
+        }
+
         return app(NotificationDispatcher::class)->dispatch(
             $this->notificationTemplateKey,
             $this->user,
@@ -192,7 +233,10 @@ class NotificationBuilder
             $this->dynamicData,
             $this->scheduledTo,
             $this->sendEmailImmediately,
-            $this->attachments
+            $this->attachments,
+            $this->renderedHtml,
+            $this->renderedSubject,
+            $this->renderedPayload
         );
     }
 }
