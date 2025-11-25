@@ -27,7 +27,9 @@
         "nyholm/psr7": "^1.8",
         "sendgrid/sendgrid": "^8.1",
         "sendgrid/php-http-client": "4.1.1",
-        "sendpulse/rest-api": "^2.0"
+        "sendpulse/rest-api": "^2.0",
+        "symfony/http-foundation": "^7.3.7",
+        "league/commonmark": "^2.7"
     },
     "require-dev": {
         "illuminate/support": "^10.0|^11.0|^12.0",
