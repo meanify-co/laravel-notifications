@@ -15,6 +15,7 @@ Uma biblioteca completa para envio de notificações centralizadas no Laravel, c
 - 📧 **Múltiplos drivers de email**: SMTP, Mailgun, SendGrid, SendPulse
 - 📎 **Anexos em emails**: Suporte completo a arquivos anexos
 - 🎯 **Broadcasting**: Notificações em tempo real
+- 📡 **Canais customizados**: Broadcast para canais específicos
 - 🌍 **Multi-idioma**: Suporte a templates traduzidos
 - 📊 **Templates dinâmicos**: Sistema flexível de templates
 - ⚡ **Jobs em fila**: Processamento assíncrono
@@ -45,6 +46,32 @@ NotificationBuilder::make('invoice-email', $user, 'pt_BR')
     ->send();
 ```
 
+## 📡 Nova Funcionalidade: Canais de Broadcast Customizados
+
+Agora você pode definir canais específicos para suas notificações in-app:
+
+```php
+use Meanify\LaravelNotifications\Support\NotificationBuilder;
+
+// Canais simples
+NotificationBuilder::make('user-alert', $user, 'pt_BR')
+    ->with(['message' => 'Alerta importante!'])
+    ->toBroadcastChannels([
+        'user.123',
+        'admin.dashboard',
+        'team.developers'
+    ])
+    ->send();
+
+// Canais com modelos obfuscados
+NotificationBuilder::make('project-update', $user, 'pt_BR')
+    ->toBroadcastChannels([
+        ['model' => User::class, 'id' => $manager->id],
+        ['channel' => 'project.alerts', 'event' => 'project.completed']
+    ])
+    ->send();
+```
+
 ## Documentation:
 
 ### - [Português (pt-BR)](docs/pt-BR.md) 🇧🇷
@@ -52,3 +79,5 @@ NotificationBuilder::make('invoice-email', $user, 'pt_BR')
 ### - [English](docs/en-US.md) 🇺🇸
 
 ### - [📎 Exemplos de Anexos](docs/attachments-example.md)
+
+### - [📡 Canais de Broadcast Customizados](docs/broadcast-channels-example.md)

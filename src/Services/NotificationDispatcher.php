@@ -29,6 +29,7 @@ class NotificationDispatcher
      * @param string|null $renderedHtml HTML já renderizado para envio imediato
      * @param string|null $renderedSubject Assunto customizado para o HTML renderizado
      * @param array $renderedPayload Dados adicionais para compor o payload quando o HTML já estiver pronto
+     * @param array $broadcastChannels Canais de broadcast customizados para notificações in-app
      * @return bool
      */
     public function dispatch(
@@ -48,6 +49,7 @@ class NotificationDispatcher
         ?string $renderedHtml = null,
         ?string $renderedSubject = null,
         array $renderedPayload = [],
+        array $broadcastChannels = [],
     ): bool {
 
         $dispatched = true;
@@ -124,6 +126,11 @@ class NotificationDispatcher
                     if (!empty($attachments))
                     {
                         $payload['__attachments'] = $attachments;
+                    }
+
+                    if (!empty($broadcastChannels) && $channel === 'in_app')
+                    {
+                        $payload['__broadcast_channels'] = $broadcastChannels;
                     }
                     
                     $notification = Notification::create([

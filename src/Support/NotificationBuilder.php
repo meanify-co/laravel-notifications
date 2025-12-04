@@ -24,6 +24,7 @@ class NotificationBuilder
     protected ?string $renderedHtml = null;
     protected ?string $renderedSubject = null;
     protected array $renderedPayload = [];
+    protected array $broadcastChannels = [];
 
     /**
      * @param string $notificationTemplateKey
@@ -202,6 +203,22 @@ class NotificationBuilder
     }
 
     /**
+     * Define canais de broadcast customizados para notificações in-app.
+     * 
+     * @param array $channels Array de canais de broadcast
+     * Exemplos:
+     * - ['user.123', 'admin.456'] - Canais simples
+     * - [['channel' => 'user.123', 'event' => 'custom.event']] - Canais com eventos customizados
+     * - [['model' => User::class, 'id' => 123]] - Usando ChannelBuilder automático
+     * @return $this
+     */
+    public function toBroadcastChannels(array $channels): static
+    {
+        $this->broadcastChannels = $channels;
+        return $this;
+    }
+
+    /**
      * @param Carbon $scheduledTo
      * @return $this
      */
@@ -236,7 +253,8 @@ class NotificationBuilder
             $this->attachments,
             $this->renderedHtml,
             $this->renderedSubject,
-            $this->renderedPayload
+            $this->renderedPayload,
+            $this->broadcastChannels
         );
     }
 }
