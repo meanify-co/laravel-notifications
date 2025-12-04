@@ -133,6 +133,8 @@ class NotificationDispatcher
                         $payload['__broadcast_channels'] = $broadcastChannels;
                     }
                     
+                    $payload['type'] = $template?->key;
+                    
                     $notification = Notification::create([
                         'notification_template_id' => $template?->id,
                         'user_id'                  => $user?->id,

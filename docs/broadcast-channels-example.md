@@ -229,3 +229,4 @@ Broadcast::channel('admin.{section}', function ($user, $section) {
 ```php
 ->toBroadcastChannels(['admin.dashboard', 'admin.users', 'admin.reports'])
 ```
+

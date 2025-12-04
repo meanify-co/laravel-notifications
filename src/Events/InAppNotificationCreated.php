@@ -72,6 +72,7 @@ class InAppNotificationCreated implements ShouldBroadcast
     {
         return [
             'id' => $this->notification->id,
+            'type' => $this->notification->payload['type'] ?? '',
             'short_message' => $this->notification->payload['short_message'] ?? '',
             'created_at' => $this->notification->created_at->toIso8601String(),
         ];

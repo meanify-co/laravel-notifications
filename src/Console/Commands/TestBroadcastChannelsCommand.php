@@ -121,3 +121,4 @@ class TestBroadcastChannelsCommand extends Command
         return 0;
     }
 }
+
