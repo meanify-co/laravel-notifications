@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Crypt;
+
 class Notification extends \Illuminate\Database\Eloquent\Model
 {
     const NOTIFICATION_STATUS_PENDING = 'pending';
@@ -36,12 +38,39 @@ class Notification extends \Illuminate\Database\Eloquent\Model
      * @var string[]
      */
     protected $casts = [
-        'payload'      => 'array',
+        // payload is handled by accessor/mutator (supports legacy unencrypted records)
         'failed_log'   => 'object',
         'sent_at'      => 'datetime',
         'scheduled_to' => 'datetime',
         'failed_at'    => 'datetime',
     ];
+
+    /**
+     * @param $value
+     * @return array
+     */
+    public function getPayloadAttribute($value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        try {
+            return json_decode(Crypt::decrypt($value), true) ?? [];
+        } catch (\Exception) {
+            // Fallback for legacy unencrypted records
+            return json_decode($value, true) ?? [];
+        }
+    }
+
+    /**
+     * @param array $value
+     * @return void
+     */
+    public function setPayloadAttribute(array $value): void
+    {
+        $this->attributes['payload'] = Crypt::encrypt(json_encode($value));
+    }
 
     /**
      * @return mixed
