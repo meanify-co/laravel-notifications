@@ -27,25 +27,27 @@ class NotificationBuilder
     protected array $broadcastChannels = [];
 
     /**
-     * @param string $notificationTemplateKey
+     * Creates a builder from a notification template key.
+     * Chain ->withRenderedHtml() instead to use a pre-rendered HTML body.
+     *
+     * Available preview flows:
+     *   make('key', $user, 'pt_BR')->with([...])->preview()                    // template + interpolated
+     *   make('key', $user, 'pt_BR')->with([...])->preview(interpolate: false)  // template + raw placeholders
+     *   make(null, $user, 'pt_BR')->withRenderedHtml($html)->preview()         // HTML + layout wrapping
+     *   make(null, $user, 'pt_BR')->withRenderedHtml($html)->preview(interpolate: false) // HTML + no layout render
+     *
+     * @param string|null $notificationTemplateKey
      * @param object|null $user
      * @param string|null $locale
      * @return static
      */
-    public static function make(string $notificationTemplateKey, ?object $user, ?string $locale): static
+    public static function make(?string $notificationTemplateKey, ?object $user = null, ?string $locale = null): static
     {
         return new static($notificationTemplateKey, $user, $locale);
     }
 
     /**
-     * Cria um builder recebendo diretamente um HTML já renderizado para envio.
-     *
-     * @param string $renderedHtml
-     * @param object|null $user
-     * @param string|null $locale
-     * @param string|null $subject
-     * @param array $payload Dados adicionais para serem mesclados ao payload final
-     * @return static
+     * @deprecated Use make(null, $user, $locale)->withRenderedHtml(...) instead
      */
     public static function makeWithRenderedHtml(string $renderedHtml, ?object $user = null, ?string $locale = null, ?string $subject = null, array $payload = []): static
     {
@@ -226,6 +228,29 @@ class NotificationBuilder
     {
         $this->scheduledTo = $scheduledTo;
         return $this;
+    }
+
+    /**
+     * Returns the rendered email (and metadata) without dispatching anything.
+     *
+     * @param bool $interpolate When false, dynamic variables are not substituted
+     * @return array{subject: string, title: string, body: string, html: string}
+     */
+    public function preview(bool $interpolate = true): array
+    {
+        if (empty($this->notificationTemplateKey) && $this->renderedHtml === null) {
+            throw new \InvalidArgumentException('Defina uma notification_template_key ou um HTML já renderizado antes de gerar o preview.');
+        }
+
+        return app(NotificationDispatcher::class)->preview(
+            $this->notificationTemplateKey,
+            $this->locale,
+            $this->dynamicData,
+            $interpolate,
+            $this->renderedHtml,
+            $this->renderedSubject,
+            $this->renderedPayload
+        );
     }
 
     /**

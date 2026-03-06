@@ -14,34 +14,49 @@ class NotificationRenderer
      */
     public function renderEmail(Notification $notification): string
     {
-        $payload  = $notification->payload ?? [];
+        $payload = $notification->payload ?? [];
 
+        $layout = $notification->template?->layout
+            ?? EmailLayout::where('key', config('meanify-laravel-notifications.default_email_layout', 'default'))->first();
+
+        return $this->renderEmailFromPayload($payload, $layout);
+    }
+
+    /**
+     * Renders an email from a raw payload array, without requiring a saved Notification model.
+     * Useful for generating previews.
+     *
+     * @param array $payload
+     * @param \App\Models\EmailLayout|null $layout
+     * @param bool $renderBody When false, the body is embedded as-is (placeholders are preserved)
+     * @return string
+     */
+    public function renderEmailFromPayload(array $payload, ?EmailLayout $layout = null, bool $renderBody = true): string
+    {
         if (!empty($payload['__rendered_email']) && isset($payload['body'])) {
             return (string) $payload['body'];
         }
 
-        $template = $notification->template;
+        if ($layout === null) {
+            $layout = EmailLayout::where('key', config('meanify-laravel-notifications.default_email_layout', 'default'))->first();
+        }
 
-        $layout = $template?->layout
-            ?? EmailLayout::where('key', config('meanify-laravel-notifications.default_email_layout', 'default'))->first();
-
-        $htmlLayout = $layout?->blade_template ?? '{{ $content }}';
-
-
+        $htmlLayout  = $layout?->blade_template ?? '{{ $content }}';
         $body        = $payload['body'] ?? '';
         $dynamicData = $payload['dynamic_data'] ?? [];
         unset($dynamicData['dynamic_data']);
 
-        if($layout)
-        {
+        if ($layout) {
             $dynamicData = array_merge($dynamicData, $layout->metadata);
         }
 
-        $renderedBody = Blade::render($body, $dynamicData);
+        $renderedBody = $renderBody
+            ? Blade::render($body, $dynamicData)
+            : $body;
 
         return Blade::render($htmlLayout, [
-                'content' => $renderedBody,
-                'subject' => $payload['subject'] ?? null,
-            ] + $dynamicData + $payload);
+            'content' => $renderedBody,
+            'subject' => $payload['subject'] ?? null,
+        ] + $dynamicData + $payload);
     }
 }

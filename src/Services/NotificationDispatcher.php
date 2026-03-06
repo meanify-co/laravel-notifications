@@ -9,6 +9,7 @@ use App\Models\Notification;
 use App\Models\NotificationTemplate;
 use Meanify\LaravelNotifications\Jobs\DispatchNotificationJob;
 use Meanify\LaravelNotifications\Jobs\SendNotificationEmailJob;
+use Meanify\LaravelNotifications\Support\NotificationRenderer;
 
 class NotificationDispatcher
 {
@@ -184,6 +185,76 @@ class NotificationDispatcher
         }
 
         return $dispatched;
+    }
+
+
+    /**
+     * Renders the email for a notification template (or raw HTML) without dispatching anything.
+     *
+     * @param string|null $notificationTemplateKey
+     * @param string $locale
+     * @param array $dynamicData
+     * @param bool $interpolate When false, variables are not substituted (raw template is returned)
+     * @param string|null $renderedHtml Pre-rendered HTML (alternative to template key)
+     * @param string|null $renderedSubject
+     * @param array $renderedPayload
+     * @return array{subject: string, title: string, body: string, html: string}
+     */
+    public function preview(
+        ?string $notificationTemplateKey,
+        string $locale,
+        array $dynamicData = [],
+        bool $interpolate = true,
+        ?string $renderedHtml = null,
+        ?string $renderedSubject = null,
+        array $renderedPayload = [],
+    ): array {
+        if (empty($notificationTemplateKey) && $renderedHtml === null) {
+            throw new \InvalidArgumentException('É necessário informar uma notification_template_key ou um HTML renderizado.');
+        }
+
+        $useTemplate = !empty($notificationTemplateKey);
+        $layout      = null;
+
+        if ($useTemplate) {
+            $template = NotificationTemplate::where('key', $notificationTemplateKey)
+                ->where('active', true)
+                ->with('translations', 'variables', 'layout')
+                ->firstOrFail();
+
+            $layout      = $template->layout;
+            $translation = $template->translations->where('locale', $locale)->first();
+
+            $payload = [
+                'dynamic_data'  => $dynamicData,
+                'short_message' => $interpolate ? $this->interpolate($translation->short_message ?? '', $dynamicData) : ($translation->short_message ?? ''),
+                'subject'       => $interpolate ? $this->interpolate($translation->subject ?? '', $dynamicData)       : ($translation->subject ?? ''),
+                'title'         => $interpolate ? $this->interpolate($translation->title ?? '', $dynamicData)         : ($translation->title ?? ''),
+                'body'          => $interpolate ? $this->interpolate($translation->body ?? '', $dynamicData)          : ($translation->body ?? ''),
+            ];
+        } else {
+            $payload = array_merge($renderedPayload, [
+                'dynamic_data'     => $dynamicData,
+                'body'             => $renderedHtml,
+                '__rendered_email' => true,
+            ]);
+
+            if ($renderedSubject !== null) {
+                $payload['subject'] = $renderedSubject;
+            }
+
+            $payload['subject'] = $payload['subject'] ?? 'App notification';
+            $payload['title']   = $payload['title']   ?? $payload['subject'];
+        }
+
+        $html = app(NotificationRenderer::class)->renderEmailFromPayload($payload, $layout, $interpolate);
+
+        return [
+            'subject' => $payload['subject'] ?? '',
+            'title'   => $payload['title']   ?? '',
+            'body'    => $payload['body']    ?? '',
+            'html'    => $html,
+        ];
     }
 
 
