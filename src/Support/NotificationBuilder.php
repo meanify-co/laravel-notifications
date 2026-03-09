@@ -179,6 +179,12 @@ class NotificationBuilder
      * @param array $payload
      * @return $this
      */
+    public function setSubject(string $subject): static
+    {
+        $this->renderedSubject = $subject;
+        return $this;
+    }
+
     public function withRenderedHtml(string $renderedHtml, ?string $subject = null, array $payload = []): static
     {
         $this->renderedHtml     = $renderedHtml;
