@@ -94,6 +94,10 @@ class NotificationDispatcher
                             'title'         => TemplateInterpolator::render($translation->title ?? '', $dynamicData),
                             'body'          => TemplateInterpolator::render($translation->body ?? '', $dynamicData),
                         ];
+
+                        if ($renderedSubject !== null) {
+                            $payload['subject'] = $renderedSubject;
+                        }
                     } else {
                         $payload = array_merge(
                             $renderedPayload,
@@ -233,6 +237,10 @@ class NotificationDispatcher
                 'title'         => $interpolate ? TemplateInterpolator::render($translation->title ?? '', $dynamicData)         : ($translation->title ?? ''),
                 'body'          => $interpolate ? TemplateInterpolator::render($translation->body ?? '', $dynamicData)          : ($translation->body ?? ''),
             ];
+
+            if ($renderedSubject !== null) {
+                $payload['subject'] = $renderedSubject;
+            }
         } else {
             $payload = array_merge($renderedPayload, [
                 'dynamic_data'     => $dynamicData,
