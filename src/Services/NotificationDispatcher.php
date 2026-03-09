@@ -14,6 +14,13 @@ use Meanify\LaravelNotifications\Support\TemplateInterpolator;
 
 class NotificationDispatcher
 {
+    private ?string $forcedSubject = null;
+
+    public function setSubject(string $subject): static
+    {
+        $this->forcedSubject = $subject;
+        return $this;
+    }
     /**
      * @param string|null $notificationTemplateKey
      * @param ?object $user
@@ -95,8 +102,9 @@ class NotificationDispatcher
                             'body'          => TemplateInterpolator::render($translation->body ?? '', $dynamicData),
                         ];
 
-                        if ($renderedSubject !== null) {
-                            $payload['subject'] = $renderedSubject;
+                        $subjectOverride = $renderedSubject ?? $this->forcedSubject;
+                        if ($subjectOverride !== null) {
+                            $payload['subject'] = $subjectOverride;
                         }
                     } else {
                         $payload = array_merge(
@@ -108,8 +116,9 @@ class NotificationDispatcher
                             ]
                         );
 
-                        if ($renderedSubject !== null) {
-                            $payload['subject'] = $renderedSubject;
+                        $subjectOverride = $renderedSubject ?? $this->forcedSubject;
+                        if ($subjectOverride !== null) {
+                            $payload['subject'] = $subjectOverride;
                         }
 
                         $payload['subject'] = $payload['subject'] ?? 'App notification';
@@ -238,8 +247,9 @@ class NotificationDispatcher
                 'body'          => $interpolate ? TemplateInterpolator::render($translation->body ?? '', $dynamicData)          : ($translation->body ?? ''),
             ];
 
-            if ($renderedSubject !== null) {
-                $payload['subject'] = $renderedSubject;
+            $subjectOverride = $renderedSubject ?? $this->forcedSubject;
+            if ($subjectOverride !== null) {
+                $payload['subject'] = $subjectOverride;
             }
         } else {
             $payload = array_merge($renderedPayload, [
@@ -248,8 +258,9 @@ class NotificationDispatcher
                 '__rendered_email' => true,
             ]);
 
-            if ($renderedSubject !== null) {
-                $payload['subject'] = $renderedSubject;
+            $subjectOverride = $renderedSubject ?? $this->forcedSubject;
+            if ($subjectOverride !== null) {
+                $payload['subject'] = $subjectOverride;
             }
 
             $payload['subject'] = $payload['subject'] ?? 'App notification';
