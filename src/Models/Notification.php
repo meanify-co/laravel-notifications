@@ -10,6 +10,8 @@ class Notification extends \Illuminate\Database\Eloquent\Model
     const NOTIFICATION_STATUS_PROCESSING = 'processing';
     const NOTIFICATION_STATUS_FAILED = 'failed';
     const NOTIFICATION_STATUS_SENT = 'sent';
+    const NOTIFICATION_STATUS_SIMULATED = 'simulated';
+    const NOTIFICATION_STATUS_SKIPPED = 'skipped';
 
     /**
      * @var string

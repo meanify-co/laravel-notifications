@@ -15,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use App\Models\Notification;
 use Mailgun\Mailgun;
 use Meanify\LaravelNotifications\Support\NotificationRenderer;
+use Meanify\LaravelNotifications\Support\RecipientFilter;
 use Sendpulse\RestApi\ApiClient;
 use Sendpulse\RestApi\Storage\FileStorage;
 
@@ -61,11 +62,56 @@ class SendNotificationEmailJob implements ShouldQueue
         {
             $notification->update(['status' => Notification::NOTIFICATION_STATUS_PROCESSING]);
 
-
             $mail = $notification->payload['__mail'] ?? null;
 
             $recipients  = $notification->payload['__recipients'] ?? [];
             $attachments = $notification->payload['__attachments'] ?? [];
+
+            // --- Recipient Filter ---
+            $filterResult = RecipientFilter::filter($recipients);
+
+            if (!empty($filterResult['blocked'])) {
+                $blockedSummary = array_map(
+                    fn($b) => $b['email'] . ' (' . $b['reason'] . ')',
+                    $filterResult['blocked']
+                );
+
+                $onBlockStatus = config('meanify-laravel-notifications.email.recipient_filter.on_block_status', 'simulated');
+
+                if ($onBlockStatus === 'simulated') {
+                    Log::warning('Email notification simulated — recipients blocked by filter', [
+                        'notification_id' => $notification->id,
+                        'blocked'         => $blockedSummary,
+                        'status'          => 'simulated',
+                    ]);
+                } else {
+                    Log::warning('Email notification skipped — recipients blocked by filter', [
+                        'notification_id' => $notification->id,
+                        'blocked'         => $blockedSummary,
+                        'status'          => 'skipped',
+                    ]);
+                }
+            }
+
+            $recipients = $filterResult['allowed'];
+
+            if (empty($recipients)) {
+                $onBlockStatus = config('meanify-laravel-notifications.email.recipient_filter.on_block_status', 'simulated');
+
+                if ($onBlockStatus === 'simulated') {
+                    $notification->update([
+                        'status'  => Notification::NOTIFICATION_STATUS_SIMULATED,
+                        'sent_at' => now(),
+                    ]);
+                } else {
+                    $notification->update([
+                        'status' => Notification::NOTIFICATION_STATUS_SKIPPED,
+                    ]);
+                }
+
+                return true;
+            }
+            // --- End Recipient Filter ---
 
             $html = app(NotificationRenderer::class)->renderEmail($notification);
 

@@ -54,6 +54,29 @@ return [
         'backoff' => 30,
         'verify_ssl' => false,
         'send_immediately' => false, // If true, bypasses the queue
+
+        /*
+        |----------------------------------------------------------------------
+        | Recipient Filter
+        |----------------------------------------------------------------------
+        |
+        | Filters recipient emails before sending. When a recipient matches
+        | a blocked domain pattern, or the email appears to be encrypted or
+        | base64-encoded, the actual send is skipped.
+        |
+        | on_block_status:
+        |   "simulated" – saves the notification as "sent" (useful for testing)
+        |   "skipped"   – saves the notification as "skipped"
+        |
+        */
+
+        'recipient_filter' => [
+            'enabled'          => false,
+            'blocked_domains'  => [],       // e.g. ['example.com', 'mailinator.com', '*.test']
+            'block_encrypted'  => true,     // Block emails that appear to be encrypted (eyJ..., non-ASCII, etc.)
+            'block_base64'     => true,     // Block emails that appear to be base64-encoded
+            'on_block_status'  => 'simulated', // 'simulated' or 'skipped'
+        ],
     ],
 
     /*
