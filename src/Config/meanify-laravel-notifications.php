@@ -72,7 +72,7 @@ return [
 
         'recipient_filter' => [
             'enabled'          => false,
-            'blocked_domains'  => [],       // e.g. ['example.com', 'mailinator.com', '*.test']
+            'blocked_domains'  => [],       // e.g. ['example.com', 'mailinator.com', '*.test', 'testenv.*']
             'block_encrypted'  => true,     // Block emails that appear to be encrypted (eyJ..., non-ASCII, etc.)
             'block_base64'     => true,     // Block emails that appear to be base64-encoded
             'on_block_status'  => 'simulated', // 'simulated' or 'skipped'

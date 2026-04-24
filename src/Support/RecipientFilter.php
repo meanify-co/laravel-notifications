@@ -148,6 +148,14 @@ class RecipientFilter
                     return true;
                 }
             }
+
+            // Wildcard support: testenv.* matches testenv.pwc.com, testenv.anything.io
+            if (str_ends_with($pattern, '.*')) {
+                $prefix = substr($pattern, 0, -1); // testenv.
+                if (str_starts_with($domain, $prefix)) {
+                    return true;
+                }
+            }
         }
 
         return false;

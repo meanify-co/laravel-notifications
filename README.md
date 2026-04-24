@@ -662,7 +662,7 @@ The recipient filter prevents email delivery to certain addresses. When enabled,
 'email' => [
     'recipient_filter' => [
         'enabled'          => true,
-        'blocked_domains'  => ['example.com', 'mailinator.com', '*.test'],
+        'blocked_domains'  => ['example.com', 'mailinator.com', '*.test', 'testenv.*'],
         'block_encrypted'  => true,
         'block_base64'     => true,
         'on_block_status'  => 'simulated', // or 'skipped'
@@ -676,7 +676,7 @@ Each recipient is checked in order:
 
 1. **Encrypted detection** — blocks if the email has no `@`, starts with `eyJ` (JWT-like), or has a high ratio of non-alphanumeric characters.
 2. **Base64 detection** — blocks if the local part (before `@`) is a valid base64 string (8+ chars that decode and re-encode identically).
-3. **Domain matching** — blocks if the domain matches any pattern in `blocked_domains`. Supports exact match (`example.com`) and wildcard (`*.test` matches `anything.test`).
+3. **Domain matching** — blocks if the domain matches any pattern in `blocked_domains`. Supports exact match (`example.com`), suffix wildcard (`*.test` matches `anything.test`), and prefix wildcard (`testenv.*` matches `testenv.pwc.com`, `testenv.anything.io`).
 
 ### Behavior When Blocked
 
